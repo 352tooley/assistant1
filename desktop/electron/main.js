@@ -1,15 +1,27 @@
+process.on('exit', (code) => {
+  console.error('❌ Process exit detected with code:', code);
+});
+
+process.on('beforeExit', (code) => {
+  console.error('❌ Process beforeExit detected with code:', code);
+});
+
 process.on('uncaughtException', (err) => {
-  console.error('❌ Electron main uncaught exception:', err);
+  console.error('❌ Uncaught exception:', err);
 });
 
 process.on('unhandledRejection', (err) => {
-  console.error('❌ Electron main unhandled rejection:', err);
+  console.error('❌ Unhandled rejection:', err);
 });
 
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '../..');
+const originalQuit = app.quit.bind(app);
+app.quit = () => {
+  console.error('❌ app.quit() called — blocking auto-exit');
+};
 
 function resolveOrchestrator() {
   return require(path.join(repoRoot, 'src', 'orchestrator.js'));
@@ -133,3 +145,11 @@ app.whenReady().then(() => {
   registerIpc();
   createWindow();
 });
+
+app.on('window-all-closed', () => {
+  console.log('window-all-closed: preventing auto-quit');
+});
+
+setInterval(() => {
+  // Keep event loop alive intentionally
+}, 10000);
