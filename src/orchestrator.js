@@ -6,6 +6,7 @@ const { runCodex } = require('./agents/codex');
 const { runClaude } = require('./agents/claude');
 const { classifyFailure } = require('./failureClassifier');
 const { validateFixPacket } = require('./fixPacketValidator');
+const { normalizeMode, chooseProvider } = require('./routingPolicy');
 const {
   runtimePath,
   loadState,
@@ -21,6 +22,9 @@ const {
   recordRegressionFixAttempt,
   getRegressionFixAttempts,
   recordFailureForCommit,
+  recordUsage,
+  recordEscalationReason,
+  getUsageSnapshot,
   updateLastSuccessfulCommit,
   refreshTaskQueueForCommit,
 } = require('./stateManager');
@@ -141,6 +145,14 @@ function summarize(value) {
   return `${raw.slice(0, 117)}...`;
 }
 
+function estimateTokens(payload) {
+  const raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  if (!raw) {
+    return 0;
+  }
+  return Math.max(1, Math.ceil(raw.length / 4));
+}
+
 function formatExpectedOutput(value) {
   if (typeof value === 'string') {
     const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -215,15 +227,44 @@ function applyForwardFix(packet, state, taskId, correctedOutput) {
   return { applied: true, reason: 'Fix applied.', filesModified: applied.filesModified, commitHash };
 }
 
-function runRoutingCycle(task, state, currentCommit, diffSummary) {
+function runRoutingCycle(task, state, currentCommit, diffSummary, mode) {
   const routingLog = [];
   let result = null;
   let escalationReason = null;
   let lastFailure = null;
   let regressionDetected = false;
   let regressionInfo = null;
+  const codexAttempts = { count: 0 };
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const providerDecision = chooseProvider({ task, failureInfo: {}, state, mode, phase: 'codex', attemptCounts: { codexAttempts: codexAttempts.count } });
+    routingLog.push(`- Provider chosen: ${providerDecision.provider} (attempt ${attempt})`);
+    routingLog.push(`- Routing mode: ${providerDecision.mode}`);
+    routingLog.push(`- Routing reason: ${providerDecision.reason}`);
+    codexAttempts.count += 1;
+    recordUsage(state, {
+      provider: providerDecision.provider,
+      estimatedTokens: estimateTokens(task),
+      mode: providerDecision.mode,
+      reason: providerDecision.reason,
+      taskId: task.id,
+    });
+
+    if (providerDecision.provider !== 'codex') {
+      return {
+        finalAgent: 'Codex',
+        result: { status: 'failure', error: 'Routing policy prevented Codex invocation.' },
+        routingLog,
+        escalationReason: 'routing_policy_blocked',
+        escalationOccurred: false,
+        claudeStatus: null,
+        fixPacket: null,
+        lastFailure: null,
+        regressionDetected: false,
+        regressionInfo: null,
+      };
+    }
+
     routingLog.push(`- Agent chosen: Codex (attempt ${attempt})`);
     result = runCodex(task);
     const codexSummary = result.output !== undefined ? result.output : result.error;
@@ -275,6 +316,46 @@ function runRoutingCycle(task, state, currentCommit, diffSummary) {
       continue;
     }
 
+    const failureInfo = {
+      classification: classification.classification,
+      failureCount: classification.count,
+      regressionDetected,
+    };
+    const escalationDecision = chooseProvider({
+      task,
+      failureInfo,
+      state,
+      mode,
+      phase: 'claude',
+      attemptCounts: { codexAttempts: codexAttempts.count },
+    });
+
+    routingLog.push(`- Provider chosen: ${escalationDecision.provider}`);
+    routingLog.push(`- Routing mode: ${escalationDecision.mode}`);
+    routingLog.push(`- Routing reason: ${escalationDecision.reason}`);
+
+    if (escalationDecision.provider !== 'claude') {
+      routingLog.push('- Budget mode suppression: Claude eligible but suppressed by policy.');
+      recordEscalationReason(state, {
+        provider: 'claude',
+        reason: escalationDecision.reason,
+        taskId: task.id,
+        mode: escalationDecision.mode,
+      });
+      return {
+        finalAgent: 'Codex',
+        result: { status: 'failure', error: 'Claude suppressed by routing policy.' },
+        routingLog,
+        escalationReason: 'claude_suppressed',
+        escalationOccurred: false,
+        claudeStatus: null,
+        fixPacket: null,
+        lastFailure,
+        regressionDetected,
+        regressionInfo,
+      };
+    }
+
     escalationReason = 'complex or repeated failure';
     routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
 
@@ -289,6 +370,13 @@ function runRoutingCycle(task, state, currentCommit, diffSummary) {
       claudeContext.regression = regressionInfo;
     }
 
+    recordUsage(state, {
+      provider: 'claude',
+      estimatedTokens: estimateTokens({ task, claudeContext }),
+      mode: escalationDecision.mode,
+      reason: escalationDecision.reason,
+      taskId: task.id,
+    });
     const claudeResult = runClaude(task, claudeContext);
     const claudeSummary = claudeResult.output !== undefined ? claudeResult.output : claudeResult.diagnosis || claudeResult.message;
     const claudeStatus = claudeResult.status === 'success' ? 'resolved' : claudeResult.status;
@@ -324,13 +412,61 @@ function runRoutingCycle(task, state, currentCommit, diffSummary) {
   }
 
   escalationReason = 'retries exhausted';
+  const failureInfo = {
+    classification: 'complex',
+    failureCount: state.failureCounts[task.id] || 0,
+    regressionDetected: false,
+  };
+  const escalationDecision = chooseProvider({
+    task,
+    failureInfo,
+    state,
+    mode,
+    phase: 'claude',
+    attemptCounts: { codexAttempts: codexAttempts.count },
+  });
+
+  routingLog.push(`- Provider chosen: ${escalationDecision.provider}`);
+  routingLog.push(`- Routing mode: ${escalationDecision.mode}`);
+  routingLog.push(`- Routing reason: ${escalationDecision.reason}`);
+
+  if (escalationDecision.provider !== 'claude') {
+    routingLog.push('- Budget mode suppression: Claude eligible but suppressed by policy.');
+    recordEscalationReason(state, {
+      provider: 'claude',
+      reason: escalationDecision.reason,
+      taskId: task.id,
+      mode: escalationDecision.mode,
+    });
+    return {
+      finalAgent: 'Codex',
+      result: { status: 'failure', error: 'Claude suppressed by routing policy.' },
+      routingLog,
+      escalationReason: 'claude_suppressed',
+      escalationOccurred: false,
+      claudeStatus: null,
+      fixPacket: null,
+      lastFailure,
+      regressionDetected: false,
+      regressionInfo: null,
+    };
+  }
+
   routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
-  const claudeResult = runClaude(task, {
+  const claudeContext = {
     error: lastFailure ? lastFailure.error : null,
     classification: 'complex',
     failureCount: state.failureCounts[task.id] || 0,
     codexOutputs: lastFailure && lastFailure.output !== undefined ? [lastFailure.output] : [],
+  };
+  recordUsage(state, {
+    provider: 'claude',
+    estimatedTokens: estimateTokens({ task, claudeContext }),
+    mode: escalationDecision.mode,
+    reason: escalationDecision.reason,
+    taskId: task.id,
   });
+  const claudeResult = runClaude(task, claudeContext);
   const claudeSummary = claudeResult.output !== undefined ? claudeResult.output : claudeResult.diagnosis || claudeResult.message;
   const claudeStatus = claudeResult.status === 'success' ? 'resolved' : claudeResult.status;
   const fixPacket =
@@ -400,7 +536,7 @@ function rerunOrchestrator(mode) {
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const options = { reset: false, maxTasks: null };
+  const options = { reset: false, maxTasks: null, mode: normalizeMode(process.env.ROUTING_MODE) };
 
   args.forEach((arg) => {
     if (arg === '--reset') {
@@ -411,6 +547,9 @@ function parseArgs() {
       if (!Number.isNaN(value) && value > 0) {
         options.maxTasks = value;
       }
+    }
+    if (arg.startsWith('--mode=')) {
+      options.mode = normalizeMode(arg.split('=')[1]);
     }
   });
 
@@ -437,6 +576,7 @@ function pruneCommitMaps(state) {
 function run() {
   const options = parseArgs();
   const healingDisabled = process.env.HEALING_RERUN === '1';
+  const mode = normalizeMode(options.mode);
   const acceptance = readFile(acceptancePath);
   const initialCriteria = extractSectionList(acceptance, '## Initial Acceptance Criteria');
 
@@ -473,6 +613,7 @@ function run() {
   const cycleStart = getNextCycleNumber();
   const branch = getBranchName();
   const diffSummary = state.lastSuccessfulCommit ? getDiffSummary(state.lastSuccessfulCommit, currentCommit) : 'diff unavailable';
+  state.usage.lastModeUsed = mode;
 
   let cycleIndex = 0;
   let healingAttempted = false;
@@ -495,7 +636,7 @@ function run() {
   while (nextTask) {
     const { resumed } = markTaskDispatched(state, nextTask.id);
     const cycle = cycleStart + cycleIndex;
-    const routing = runRoutingCycle(nextTask, state, currentCommit, diffSummary);
+    const routing = runRoutingCycle(nextTask, state, currentCommit, diffSummary, mode);
     const timestamp = new Date().toISOString();
 
     let fixStatus = null;
@@ -587,10 +728,15 @@ function run() {
       markTaskComplete(state, nextTask.id, currentCommit);
     }
 
+    if (routing.result.status !== 'success' && routing.finalAgent === 'Codex' && !healingTriggered) {
+      markTaskFailed(state, nextTask.id);
+    }
+
     if (routing.finalAgent === 'Claude' && !healingTriggered) {
       markTaskFailed(state, nextTask.id);
     }
 
+    const usageSnapshot = getUsageSnapshot(state);
     const entryLines = [
       '',
       `## ${timestamp}`,
@@ -601,11 +747,13 @@ function run() {
       `- Task type: ${nextTask.type}`,
       `- Task resume: ${resumed ? 'yes' : 'no'}`,
       `- State: ${stateStatus}`,
+      `- Routing mode: ${mode}`,
       `- Acceptance criteria parsed: ${initialCriteria.length}`,
       ...routing.routingLog,
       `- Escalation: ${routing.escalationOccurred ? 'yes' : 'no'}`,
       routing.escalationReason ? `- Escalation reason: ${routing.escalationReason}` : '- Escalation reason: none',
       `- Healing attempts count: ${getHealingAttempts(state, nextTask.id)}`,
+      `- Usage snapshot: codexCalls=${usageSnapshot.codexCalls}, claudeCalls=${usageSnapshot.claudeCalls}`,
     ];
 
     if (routing.regressionDetected && routing.regressionInfo) {

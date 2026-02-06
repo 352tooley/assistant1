@@ -1865,3 +1865,774 @@
 - Fix files modified: src/orchestrator.js
 - Healing outcome: resolved
 - State save: pre-rerun
+
+## 2026-02-06T10:49:47.710Z
+- Event: State reset
+- Branch: `agent/codex/bootstrap`
+- State file: /Users/macbook/assistant1/state/runtime.json
+
+## 2026-02-06T10:49:47.713Z
+- Event: Orchestrator cycle
+- Cycle: 106
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-success`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CYCLE SEVEN
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=1, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:47.719Z
+- Event: Orchestrator cycle
+- Cycle: 107
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-fail`
+- Task type: compute_sum
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: 6
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=2, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:47.721Z
+- Event: Orchestrator cycle
+- Cycle: 108
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-1`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: REPOSITORY SCAFFOLD EXISTS WITH `DOCS/`, `SRC/`, `TESTS/`, AND `CI/` DIRECTORIES.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=3, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:47.723Z
+- Event: Orchestrator cycle
+- Cycle: 109
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-2`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: AGENT CONTRACT EXISTS AT `DOCS/AGENT_CONTRACT.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=4, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:47.725Z
+- Event: Orchestrator cycle
+- Cycle: 110
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-3`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: LOOP LOG EXISTS AT `DOCS/LOOP_LOG.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=5, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:47.726Z
+- Event: Orchestrator cycle
+- Cycle: 111
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-4`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: DECISIONS LOG EXISTS AT `DOCS/DECISIONS.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=6, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:47.726Z
+- Event: Orchestrator cycle
+- Cycle: 112
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-5`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: README EXISTS AT `README.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=7, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:47.727Z
+- Event: Orchestrator cycle
+- Cycle: 113
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-6`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CI SKELETON EXISTS AT `CI/PIPELINE.YML`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=8, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:55.673Z
+- Event: State reset
+- Branch: `agent/codex/bootstrap`
+- State file: /Users/macbook/assistant1/state/runtime.json
+
+## 2026-02-06T10:49:55.675Z
+- Event: Orchestrator cycle
+- Cycle: 114
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-success`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CYCLE SEVEN
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=1, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:55.680Z
+- Event: Orchestrator cycle
+- Cycle: 115
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-fail`
+- Task type: compute_sum
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: 6
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=2, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:55.682Z
+- Event: Orchestrator cycle
+- Cycle: 116
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-1`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: REPOSITORY SCAFFOLD EXISTS WITH `DOCS/`, `SRC/`, `TESTS/`, AND `CI/` DIRECTORIES.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=3, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:55.683Z
+- Event: Orchestrator cycle
+- Cycle: 117
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-2`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: AGENT CONTRACT EXISTS AT `DOCS/AGENT_CONTRACT.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=4, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:55.683Z
+- Event: Orchestrator cycle
+- Cycle: 118
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-3`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: LOOP LOG EXISTS AT `DOCS/LOOP_LOG.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=5, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:55.684Z
+- Event: Orchestrator cycle
+- Cycle: 119
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-4`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: DECISIONS LOG EXISTS AT `DOCS/DECISIONS.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=6, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:55.684Z
+- Event: Orchestrator cycle
+- Cycle: 120
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-5`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: README EXISTS AT `README.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=7, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:49:55.685Z
+- Event: Orchestrator cycle
+- Cycle: 121
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-6`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CI SKELETON EXISTS AT `CI/PIPELINE.YML`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=8, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:05.196Z
+- Event: State reset
+- Branch: `agent/codex/bootstrap`
+- State file: /Users/macbook/assistant1/state/runtime.json
+
+## 2026-02-06T10:50:05.199Z
+- Event: Orchestrator cycle
+- Cycle: 122
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-success`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: diagnostic
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: diagnostic
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CYCLE SEVEN
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=1, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:05.204Z
+- Event: Orchestrator cycle
+- Cycle: 123
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-fail`
+- Task type: compute_sum
+- Task resume: no
+- State: initialized
+- Routing mode: diagnostic
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: diagnostic
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: 6
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=2, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:05.205Z
+- Event: Orchestrator cycle
+- Cycle: 124
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-1`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: diagnostic
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: diagnostic
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: REPOSITORY SCAFFOLD EXISTS WITH `DOCS/`, `SRC/`, `TESTS/`, AND `CI/` DIRECTORIES.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=3, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:05.206Z
+- Event: Orchestrator cycle
+- Cycle: 125
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-2`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: diagnostic
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: diagnostic
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: AGENT CONTRACT EXISTS AT `DOCS/AGENT_CONTRACT.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=4, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:05.206Z
+- Event: Orchestrator cycle
+- Cycle: 126
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-3`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: diagnostic
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: diagnostic
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: LOOP LOG EXISTS AT `DOCS/LOOP_LOG.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=5, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:05.207Z
+- Event: Orchestrator cycle
+- Cycle: 127
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-4`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: diagnostic
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: diagnostic
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: DECISIONS LOG EXISTS AT `DOCS/DECISIONS.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=6, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:05.208Z
+- Event: Orchestrator cycle
+- Cycle: 128
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-5`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: diagnostic
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: diagnostic
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: README EXISTS AT `README.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=7, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:05.208Z
+- Event: Orchestrator cycle
+- Cycle: 129
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-6`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: diagnostic
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: diagnostic
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CI SKELETON EXISTS AT `CI/PIPELINE.YML`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=8, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:35.000Z
+- Event: State reset
+- Branch: `agent/codex/bootstrap`
+- State file: /Users/macbook/assistant1/state/runtime.json
+
+## 2026-02-06T10:50:35.003Z
+- Event: Orchestrator cycle
+- Cycle: 130
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-success`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CYCLE SEVEN
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=1, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:35.007Z
+- Event: Orchestrator cycle
+- Cycle: 131
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-fail`
+- Task type: compute_sum
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: failure
+- Codex output summary: 6
+- Failure classification: simple (count 1)
+- Regression detected: no
+- Routing decision: retry Codex
+- Provider chosen: codex (attempt 2)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 2)
+- Codex result: failure
+- Codex output summary: 6
+- Failure classification: complex (count 2)
+- Regression detected: no
+- Provider chosen: codex
+- Routing mode: budget
+- Routing reason: budget_suppression_failure_count_2_attempts_2
+- Budget mode suppression: Claude eligible but suppressed by policy.
+- Escalation: no
+- Escalation reason: claude_suppressed
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=3, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:35.009Z
+- Event: Orchestrator cycle
+- Cycle: 132
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-1`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: REPOSITORY SCAFFOLD EXISTS WITH `DOCS/`, `SRC/`, `TESTS/`, AND `CI/` DIRECTORIES.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=4, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:35.009Z
+- Event: Orchestrator cycle
+- Cycle: 133
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-2`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: AGENT CONTRACT EXISTS AT `DOCS/AGENT_CONTRACT.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=5, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:35.010Z
+- Event: Orchestrator cycle
+- Cycle: 134
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-3`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: LOOP LOG EXISTS AT `DOCS/LOOP_LOG.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=6, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:35.011Z
+- Event: Orchestrator cycle
+- Cycle: 135
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-4`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: DECISIONS LOG EXISTS AT `DOCS/DECISIONS.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=7, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:35.013Z
+- Event: Orchestrator cycle
+- Cycle: 136
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-5`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: README EXISTS AT `README.MD`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=8, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T10:50:35.015Z
+- Event: Orchestrator cycle
+- Cycle: 137
+- Branch: `agent/codex/bootstrap`
+- Task id: `acc-6`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: budget
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: budget
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CI SKELETON EXISTS AT `CI/PIPELINE.YML`.
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=9, claudeCalls=0
+- Regression detected: no
+- State save: ok

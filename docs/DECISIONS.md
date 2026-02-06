@@ -74,6 +74,17 @@
 - Decision: Stop the loop if regression remediation fails.
 - Rationale: Ensures deterministic termination and operator review.
 
+## 2026-02-06: Cost-Aware Routing Policy
+
+- Decision: Centralize routing policy in code-owned functions with deterministic reasons.
+- Rationale: Ensures auditable provider selection without LLM-driven routing.
+- Decision: Introduce explicit modes (standard, budget, diagnostic) to control Claude usage.
+- Rationale: Provides operator control while preserving safety invariants.
+- Decision: Persist approximate usage metrics and bounded escalation reasons.
+- Rationale: Enables cost tracking without unbounded state growth or precise token dependency.
+- Decision: Keep Claude escalation-only in all modes.
+- Rationale: Preserves separation of roles and avoids scope expansion.
+
 ## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
 
 - Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.

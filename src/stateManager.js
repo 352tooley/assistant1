@@ -31,6 +31,14 @@ function createDefaultState(tasks) {
     })),
     failureCounts: {},
     healingAttempts: {},
+    usage: {
+      codexCalls: 0,
+      claudeCalls: 0,
+      codexEstimatedTokens: 0,
+      claudeEstimatedTokens: 0,
+      lastModeUsed: 'standard',
+      escalationReasons: [],
+    },
   };
 }
 
@@ -61,6 +69,13 @@ function loadState(tasks, options = {}) {
     parsed.regressionFixAttempts = parsed.regressionFixAttempts || {};
     parsed.lastRunTimestamp = parsed.lastRunTimestamp || null;
     parsed.version = parsed.version || 1;
+    parsed.usage = parsed.usage || {};
+    parsed.usage.codexCalls = parsed.usage.codexCalls || 0;
+    parsed.usage.claudeCalls = parsed.usage.claudeCalls || 0;
+    parsed.usage.codexEstimatedTokens = parsed.usage.codexEstimatedTokens || 0;
+    parsed.usage.claudeEstimatedTokens = parsed.usage.claudeEstimatedTokens || 0;
+    parsed.usage.lastModeUsed = parsed.usage.lastModeUsed || 'standard';
+    parsed.usage.escalationReasons = parsed.usage.escalationReasons || [];
     return { state: parsed, status: 'loaded' };
   } catch {
     return {
@@ -82,6 +97,14 @@ function saveState(state) {
     taskQueue: state.taskQueue,
     failureCounts: sortObjectKeys(state.failureCounts || {}),
     healingAttempts: sortObjectKeys(state.healingAttempts || {}),
+    usage: {
+      codexCalls: state.usage.codexCalls || 0,
+      claudeCalls: state.usage.claudeCalls || 0,
+      codexEstimatedTokens: state.usage.codexEstimatedTokens || 0,
+      claudeEstimatedTokens: state.usage.claudeEstimatedTokens || 0,
+      lastModeUsed: state.usage.lastModeUsed || 'standard',
+      escalationReasons: state.usage.escalationReasons || [],
+    },
   };
   const serialized = `${JSON.stringify(payload, null, 2)}\n`;
   fs.writeFileSync(runtimePath, serialized, 'utf8');
@@ -159,6 +182,62 @@ function recordFailureForCommit(state, commitHash, taskId, signature) {
   });
 }
 
+function recordUsage(state, { provider, estimatedTokens, mode, reason, taskId }) {
+  if (!state.usage) {
+    state.usage = {
+      codexCalls: 0,
+      claudeCalls: 0,
+      codexEstimatedTokens: 0,
+      claudeEstimatedTokens: 0,
+      lastModeUsed: 'standard',
+      escalationReasons: [],
+    };
+  }
+
+  const tokens = Number.isFinite(estimatedTokens) ? estimatedTokens : 0;
+  if (provider === 'claude') {
+    state.usage.claudeCalls += 1;
+    state.usage.claudeEstimatedTokens += tokens;
+  } else {
+    state.usage.codexCalls += 1;
+    state.usage.codexEstimatedTokens += tokens;
+  }
+
+  state.usage.lastModeUsed = mode || state.usage.lastModeUsed || 'standard';
+
+  if (reason) {
+    recordEscalationReason(state, {
+      provider,
+      reason,
+      taskId,
+      mode: state.usage.lastModeUsed,
+    });
+  }
+}
+
+function getUsageSnapshot(state) {
+  return {
+    codexCalls: state.usage.codexCalls || 0,
+    claudeCalls: state.usage.claudeCalls || 0,
+  };
+}
+
+function recordEscalationReason(state, { provider, reason, taskId, mode }) {
+  if (!state.usage) {
+    return;
+  }
+  state.usage.escalationReasons.push({
+    timestamp: new Date().toISOString(),
+    provider,
+    reason,
+    taskId,
+    mode: mode || state.usage.lastModeUsed || 'standard',
+  });
+  if (state.usage.escalationReasons.length > 50) {
+    state.usage.escalationReasons.shift();
+  }
+}
+
 function updateLastSuccessfulCommit(state, commitHash) {
   state.lastSuccessfulCommit = commitHash;
   state.commitsSinceSuccess = [];
@@ -207,6 +286,9 @@ module.exports = {
   recordRegressionFixAttempt,
   getRegressionFixAttempts,
   recordFailureForCommit,
+  recordUsage,
+  recordEscalationReason,
+  getUsageSnapshot,
   updateLastSuccessfulCommit,
   refreshTaskQueueForCommit,
 };
