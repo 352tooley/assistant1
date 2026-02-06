@@ -37,6 +37,7 @@ const acceptancePath = path.join(repoRoot, 'docs', 'ACCEPTANCE.md');
 const loopLogPath = path.join(repoRoot, 'docs', 'LOOP_LOG.md');
 const headPath = path.join(repoRoot, '.git', 'HEAD');
 const stopFlagPath = path.join(repoRoot, 'state', 'STOP');
+const runtimeStatusPath = path.join(repoRoot, 'state', 'runtime.json');
 
 function readFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
@@ -549,6 +550,24 @@ function appendLoopLog(entryLines) {
   fs.appendFileSync(loopLogPath, entry, 'utf8');
 }
 
+function logCliEvent({ command, intent, result, details }) {
+  const timestamp = new Date().toISOString();
+  const lines = [
+    '',
+    `## ${timestamp}`,
+    '- Event: CLI command',
+    `- cliCommand: ${command}`,
+    `- operatorIntent: ${intent}`,
+    `- result: ${result}`,
+  ];
+
+  if (details && details.length > 0) {
+    details.forEach((detail) => lines.push(`- detail: ${detail}`));
+  }
+
+  appendLoopLog(lines);
+}
+
 function rerunOrchestrator(mode) {
   const env = { ...process.env, HEALING_RERUN: '1' };
   if (mode) {
@@ -644,10 +663,19 @@ function pruneCommitMaps(state) {
   });
 }
 
-function runHeadless(options) {
+function runHeadless(options, meta = {}) {
   const startTime = Date.now();
   let cycles = 0;
   let exitReason = null;
+
+  if (meta.cliCommand) {
+    logCliEvent({
+      command: meta.cliCommand,
+      intent: meta.operatorIntent || 'headless start',
+      result: 'started',
+      details: [`pollIntervalMs=${options.pollIntervalMs}`, `maxCycles=${options.maxCycles}`, `maxRuntimeMs=${options.maxRuntimeMs}`],
+    });
+  }
 
   while (true) {
     if (fs.existsSync(stopFlagPath)) {
@@ -671,6 +699,8 @@ function runHeadless(options) {
         `- Reason: ${exitReason}`,
         `- Headless mode: true`,
         `- Poll interval ms: ${options.pollIntervalMs}`,
+        meta.cliCommand ? `- cliCommand: ${meta.cliCommand}` : '- cliCommand: none',
+        meta.operatorIntent ? `- operatorIntent: ${meta.operatorIntent}` : '- operatorIntent: none',
       ]);
       return;
     }
@@ -679,7 +709,7 @@ function runHeadless(options) {
       ...options,
       reset: options.reset && cycles === 0,
     };
-    const cycleResult = runOnce(cycleOptions, { headlessMode: true });
+    const cycleResult = runOnce(cycleOptions, { headlessMode: true, cliCommand: meta.cliCommand, operatorIntent: meta.operatorIntent });
     cycles += 1;
 
     if (fs.existsSync(stopFlagPath)) {
@@ -696,6 +726,8 @@ function runHeadless(options) {
         `- Headless mode: true`,
         `- Poll interval ms: ${options.pollIntervalMs}`,
         `- Sleep start: ${sleepStart}`,
+        meta.cliCommand ? `- cliCommand: ${meta.cliCommand}` : '- cliCommand: none',
+        meta.operatorIntent ? `- operatorIntent: ${meta.operatorIntent}` : '- operatorIntent: none',
       ]);
 
       if (cycleResult.state) {
@@ -711,12 +743,14 @@ function runHeadless(options) {
         `- Headless mode: true`,
         `- Poll interval ms: ${options.pollIntervalMs}`,
         `- Wake time: ${wakeTime}`,
+        meta.cliCommand ? `- cliCommand: ${meta.cliCommand}` : '- cliCommand: none',
+        meta.operatorIntent ? `- operatorIntent: ${meta.operatorIntent}` : '- operatorIntent: none',
       ]);
     }
   }
 }
 
-function runOnce(options, { headlessMode }) {
+function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
   const healingDisabled = process.env.HEALING_RERUN === '1';
   const mode = normalizeMode(options.mode);
   const acceptance = readFile(acceptancePath);
@@ -771,6 +805,8 @@ function runOnce(options, { headlessMode }) {
       '- Event: State reset',
       `- Branch: \`${branch}\``,
       `- State file: ${runtimePath}`,
+      cliCommand ? `- cliCommand: ${cliCommand}` : '- cliCommand: none',
+      operatorIntent ? `- operatorIntent: ${operatorIntent}` : '- operatorIntent: none',
     ]);
   }
 
@@ -785,6 +821,8 @@ function runOnce(options, { headlessMode }) {
       `- Headless mode: ${headlessMode ? 'true' : 'false'}`,
       `- Poll interval ms: ${options.pollIntervalMs}`,
       '- Exit reason: idle',
+      cliCommand ? `- cliCommand: ${cliCommand}` : '- cliCommand: none',
+      operatorIntent ? `- operatorIntent: ${operatorIntent}` : '- operatorIntent: none',
     ]);
     return { status: 'idle', state };
   }
@@ -906,6 +944,8 @@ function runOnce(options, { headlessMode }) {
       `- Routing mode: ${mode}`,
       `- Headless mode: ${headlessMode ? 'true' : 'false'}`,
       `- Poll interval ms: ${options.pollIntervalMs}`,
+      cliCommand ? `- cliCommand: ${cliCommand}` : '- cliCommand: none',
+      operatorIntent ? `- operatorIntent: ${operatorIntent}` : '- operatorIntent: none',
       `- Acceptance criteria parsed: ${initialCriteria.length}`,
       ...routing.routingLog,
       `- Escalation: ${routing.escalationOccurred ? 'yes' : 'no'}`,
@@ -985,4 +1025,54 @@ function run() {
   return runOnce(options, { headlessMode: false });
 }
 
-run();
+if (require.main === module) {
+  run();
+}
+
+function getStatusSnapshot(modeOverride) {
+  const mode = normalizeMode(modeOverride);
+  let state = null;
+  if (fs.existsSync(runtimeStatusPath)) {
+    try {
+      state = JSON.parse(readFile(runtimeStatusPath));
+    } catch {
+      state = null;
+    }
+  }
+
+  const taskQueue = state && Array.isArray(state.taskQueue) ? state.taskQueue : [];
+  const pending = taskQueue.filter((task) => task.status === 'pending').length;
+  const completed = taskQueue.filter((task) => task.status === 'completed').length;
+  const failed = taskQueue.filter((task) => task.status === 'failed').length;
+  const headlessStatus = pending > 0 ? 'running' : 'idle';
+
+  return {
+    pending,
+    completed,
+    failed,
+    lastRunTimestamp: state ? state.lastRunTimestamp : null,
+    lastSuccessfulCommit: state ? state.lastSuccessfulCommit : null,
+    usage: state ? state.usage : { codexCalls: 0, claudeCalls: 0 },
+    mode,
+    headlessStatus,
+    stopFlag: fs.existsSync(stopFlagPath),
+  };
+}
+
+function resetOnly(meta = {}) {
+  resetState();
+  logCliEvent({
+    command: meta.cliCommand || 'reset',
+    intent: meta.operatorIntent || 'reset',
+    result: 'success',
+    details: [`stateFile=${runtimePath}`],
+  });
+}
+
+module.exports = {
+  runOnce,
+  runHeadless,
+  getStatusSnapshot,
+  resetOnly,
+  logCliEvent,
+};

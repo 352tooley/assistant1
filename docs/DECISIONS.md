@@ -105,6 +105,17 @@
 - Decision: Do not reuse Claude for planning or critique.
 - Rationale: Maintains Claude as escalation-only diagnostics and avoids scope creep.
 
+## 2026-02-06: CLI External Interface
+
+- Decision: Introduce a CLI as the first external interface.
+- Rationale: Provides operator control without network or daemon complexity.
+- Decision: Default CLI actions to read-only status.
+- Rationale: Minimizes risk of unintended execution.
+- Decision: Require explicit subcommands for run-once, headless start/stop, and reset.
+- Rationale: Ensures bounded, auditable actions without bypassing orchestrator authority.
+- Decision: Log all CLI commands with intent and results.
+- Rationale: Preserves auditability for external actions.
+
 ## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
 
 - Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.
