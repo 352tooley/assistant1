@@ -108,7 +108,7 @@ function buildTaskQueue(acceptanceItems) {
       id: 'task-success',
       type: 'text_transform',
       input: { text: 'Cycle Seven', mode: 'upper' },
-      expectedOutput: 'CYCLE SEVEN!',
+      expectedOutput: 'CYCLE SEVEN',
     },
     {
       id: 'task-fail',
