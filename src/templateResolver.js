@@ -128,6 +128,12 @@ function resolveTemplate(naturalLanguage) {
 
   scores.sort((a, b) => b.score - a.score);
   let best = scores[0];
+  if (normalizeText(naturalLanguage).match(/youtube\.com|youtu\.be/)) {
+    const youtube = scores.find((entry) => entry.template && entry.template.id === 'youtube_analysis');
+    if (youtube) {
+      best = { template: youtube.template, score: Math.max(0.2, best.score) };
+    }
+  }
   if (best.score === 0 && normalizeText(naturalLanguage).length > 0) {
     const fallback = scores.find((entry) => entry.template && entry.template.id === 'open_ended_idea');
     if (fallback) {

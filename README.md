@@ -45,6 +45,9 @@ For Grok, the xAI API is OpenAI-compatible and uses the base URL shown below:
 https://api.x.ai/v1
 ```
 
+## YouTube Analysis (Skill Extraction)
+The `youtube_analysis` template fetches public captions directly from YouTube and uses an LLM to extract skills, procedures, and checklists. Videos without captions will fail gracefully.
+
 ### Validate
 Use **Dry-Run Check** in Task Builder to validate provider + role readiness before execution.
 

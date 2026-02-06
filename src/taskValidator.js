@@ -87,8 +87,8 @@ function validateTaskRequest(taskRequest) {
     return { ok: false, reason: 'requestedAgentRole mismatch.' };
   }
 
-  if ((template.id === 'open_ended_idea' || template.id === 'open_ended_plan') && !taskRequest.preferredProvider) {
-    return { ok: false, reason: 'Preferred provider required for open-ended templates.' };
+  if ((template.id === 'open_ended_idea' || template.id === 'open_ended_plan' || template.id === 'youtube_analysis') && !taskRequest.preferredProvider) {
+    return { ok: false, reason: 'Preferred provider required for open-ended or YouTube templates.' };
   }
 
   const inputs = taskRequest.inputs || {};

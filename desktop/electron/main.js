@@ -193,6 +193,7 @@ function registerIpc() {
         requestedAdvisor: config && config.requestedAdvisor ? config.requestedAdvisor : 'auto',
         preferredProvider: config && config.preferredProvider ? config.preferredProvider : '',
         preferredRole: config && config.preferredRole ? config.preferredRole : '',
+        preferredModel: config && config.preferredModel ? config.preferredModel : '',
         templateId: config && config.templateId ? config.templateId : '',
         dryRun: true,
         pollIntervalMs: 5000,

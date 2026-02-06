@@ -15,7 +15,12 @@ module.exports = {
     label: 'xAI (Grok)',
     auth: ['apiKey'],
     roles: ['auto', 'coder', 'planner', 'reviewer'],
-    models: ['grok-4', 'grok-4-latest', 'grok-4-0709'],
+    models: [
+      'grok-4',
+      'grok-4-1-fast-reasoning',
+      'grok-4-1-fast-non-reasoning',
+      'grok-code-fast-1',
+    ],
   },
   custom: {
     label: 'Custom / Local AI',

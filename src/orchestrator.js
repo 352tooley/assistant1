@@ -200,6 +200,15 @@ function buildInternalTaskFromTemplate(template, inputs, request) {
       preferredModel: request.preferredModel || '',
     };
   }
+  if (template.id === 'youtube_analysis') {
+    return {
+      id: `approved-${template.id}-${Date.now()}`,
+      type: 'youtube_analysis',
+      input: { url: inputs.url, focus: inputs.focus || '' },
+      providerName: request.preferredProvider || '',
+      preferredModel: request.preferredModel || '',
+    };
+  }
   const description = `${template.id}: ${template.label}`;
   const payload = JSON.stringify(inputs || {});
   const text = `${description} ${payload}`;
@@ -1008,7 +1017,9 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
       preferredModel: options.preferredModel,
     });
     const requiresProvider =
-      options.templateId === 'open_ended_idea' || options.templateId === 'open_ended_plan';
+      options.templateId === 'open_ended_idea' ||
+      options.templateId === 'open_ended_plan' ||
+      options.templateId === 'youtube_analysis';
     const timestamp = new Date().toISOString();
     const runId = `dry-run-${Date.now()}`;
     appendLoopLog([

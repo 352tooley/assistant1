@@ -190,9 +190,11 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
   const selectedProvider = providers.find((provider) => provider.name === preferredProvider);
   const providerModels = selectedProvider?.models || [];
   const providerReady = !preferredProvider || (selectedProvider && selectedProvider.enabled && (selectedProvider.authStatus.apiKey || selectedProvider.authStatus.oauth));
-  const openEndedTemplate =
-    preview?.template?.id === 'open_ended_idea' || preview?.template?.id === 'open_ended_plan';
-  const providerBlocked = (Boolean(preferredProvider) && !providerReady) || (openEndedTemplate && !preferredProvider);
+  const requiresProvider =
+    preview?.template?.id === 'open_ended_idea' ||
+    preview?.template?.id === 'open_ended_plan' ||
+    preview?.template?.id === 'youtube_analysis';
+  const providerBlocked = (Boolean(preferredProvider) && !providerReady) || (requiresProvider && !preferredProvider);
   const approveDisabled =
     missingInputs.length > 0 ||
     !preview?.template ||
@@ -267,8 +269,8 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
         ) : null}
         {providerBlocked ? (
           <p className="muted">
-            {openEndedTemplate && !preferredProvider
-              ? 'Open-ended templates require a preferred provider.'
+            {requiresProvider && !preferredProvider
+              ? 'This template requires a preferred provider.'
               : 'Preferred provider is unavailable. Enable it and add credentials before running.'}
           </p>
         ) : null}

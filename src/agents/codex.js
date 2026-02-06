@@ -33,7 +33,7 @@ function runCodex(task) {
 
   let output;
 
-  if (task.type === 'open_ended_idea' || task.type === 'open_ended_plan') {
+  if (task.type === 'open_ended_idea' || task.type === 'open_ended_plan' || task.type === 'youtube_analysis') {
     const { spawnSync } = require('child_process');
     const { loadProviderStore } = require('../providerManager');
     const store = loadProviderStore();
@@ -43,10 +43,38 @@ function runCodex(task) {
       providerType === 'xai'
         ? require.resolve('./grokAdapter.js')
         : require.resolve('./openaiAdapter.js');
+    let taskInput = task.input || {};
+    if (task.type === 'youtube_analysis') {
+      const transcriptResult = spawnSync(process.execPath, [require.resolve('../transcriptFetcherCli.js')], {
+        env: {
+          ...process.env,
+          YOUTUBE_TRANSCRIPT_URL: taskInput.url || '',
+          YOUTUBE_TRANSCRIPT_LANG: 'en',
+        },
+        encoding: 'utf8',
+      });
+      if (transcriptResult.error || transcriptResult.status !== 0) {
+        return { status: 'failure', error: 'Transcript fetch failed to run.' };
+      }
+      try {
+        const parsedTranscript = JSON.parse((transcriptResult.stdout || '').trim() || '{}');
+        if (!parsedTranscript.ok) {
+          return { status: 'failure', error: parsedTranscript.reason || 'Transcript unavailable.' };
+        }
+        taskInput = {
+          ...taskInput,
+          transcript: parsedTranscript.transcript,
+          language: parsedTranscript.language,
+        };
+      } catch {
+        return { status: 'failure', error: 'Transcript fetch returned invalid output.' };
+      }
+    }
+
     const payload = {
       task: {
         type: task.type,
-        input: task.input || {},
+        input: taskInput,
       },
       providerName: task.providerName || '',
       preferredModel: task.preferredModel || '',

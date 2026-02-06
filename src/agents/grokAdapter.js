@@ -21,6 +21,19 @@ function buildPrompt(task) {
       `Answers: ${task.input.answers}`,
     ].join('\n');
   }
+  if (task.type === 'youtube_analysis') {
+    const focus = task.input.focus ? `Focus: ${task.input.focus}` : 'Focus: general skill extraction';
+    const transcript = task.input.transcript || '';
+    return [
+      'You are Grok. Learn skills from this YouTube transcript and produce a reproducible procedure.',
+      'Output must include:',
+      '1) Skills Learned (bulleted)',
+      '2) Step-by-Step Procedure (numbered)',
+      '3) Checklist for Reproduction (bulleted)',
+      focus,
+      `Transcript: ${transcript.slice(0, 12000)}`,
+    ].join('\n');
+  }
   return `Unsupported task type: ${task.type}`;
 }
 
