@@ -52,6 +52,7 @@ function runCodex(task) {
           YOUTUBE_TRANSCRIPT_LANG: 'en',
         },
         encoding: 'utf8',
+        timeout: 8000,
       });
       if (transcriptResult.error || transcriptResult.status !== 0) {
         return { status: 'failure', error: 'Transcript fetch failed to run.' };
@@ -86,6 +87,7 @@ function runCodex(task) {
         GROK_ADAPTER_PAYLOAD: JSON.stringify(payload),
       },
       encoding: 'utf8',
+      timeout: 15000,
     });
     if (result.error || result.status !== 0) {
       return {
