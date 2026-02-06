@@ -1088,13 +1088,15 @@ function getStatusSnapshot(modeOverride) {
   const failed = taskQueue.filter((task) => task.status === 'failed').length;
   const headlessStatus = pending > 0 ? 'running' : 'idle';
 
+  const usage = state && state.usage ? state.usage : { codexCalls: 0, claudeCalls: 0 };
+
   return {
     pending,
     completed,
     failed,
     lastRunTimestamp: state ? state.lastRunTimestamp : null,
     lastSuccessfulCommit: state ? state.lastSuccessfulCommit : null,
-    usage: state ? state.usage : { codexCalls: 0, claudeCalls: 0 },
+    usage,
     mode,
     headlessStatus,
     stopFlag: fs.existsSync(stopFlagPath),

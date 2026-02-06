@@ -56,3 +56,24 @@ touch state/STOP
 - Primary log: `docs/LOOP_LOG.md`
 - Decisions: `docs/DECISIONS.md`
 - System limits: `docs/SYSTEM_LIMITS.md`
+
+## Desktop Control Center (Experimental)
+
+The desktop UI is a visual control surface for status and preview only.
+
+### How to run
+```bash
+cd desktop
+npm install
+npm run dev
+```
+
+### What it does
+- Displays engine status via IPC (read-only).
+- Shows static agent roster and activity.
+- Generates a task preview from natural language.
+
+### What it does NOT do
+- Execute tasks.
+- Modify engine state.
+- Bypass orchestrator safeguards.

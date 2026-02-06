@@ -4470,3 +4470,55 @@
 - operatorIntent: status
 - result: rejected
 - detail: state_corrupt
+
+## 2026-02-06T11:36:03.794Z
+- Event: CLI command
+- cliCommand: status
+- operatorIntent: status
+- result: success
+- detail: pending=0
+- detail: completed=0
+
+## 2026-02-06T11:36:12.268Z
+- Event: State corrupt
+- Headless mode: false
+- cliCommand: run-once
+- operatorIntent: run-once
+- Exit reason: state_corrupt
+
+## 2026-02-06T11:36:12.270Z
+- Event: CLI command
+- cliCommand: run-once
+- operatorIntent: run-once
+- result: rejected
+
+## 2026-02-06T11:36:17.644Z
+- Event: CLI command
+- cliCommand: headless start
+- operatorIntent: headless start
+- result: started
+- detail: pollIntervalMs=5000
+- detail: maxCycles=1
+- detail: maxRuntimeMs=10000
+
+## 2026-02-06T11:36:17.645Z
+- Event: Headless exit
+- Reason: operatorStop
+- Headless mode: true
+- Poll interval ms: 5000
+- cliCommand: headless start
+- operatorIntent: headless start
+
+## 2026-02-06T11:36:23.493Z
+- Event: CLI command
+- cliCommand: bogus
+- operatorIntent: unknown
+- result: rejected
+- detail: unknown_command
+
+## 2026-02-06T11:36:34.183Z
+- Event: CLI command
+- cliCommand: status
+- operatorIntent: status
+- result: rejected
+- detail: state_corrupt
