@@ -26,15 +26,25 @@ function buildPrompt(task) {
     const transcript = task.input.transcript || '';
     return [
       'You are Grok. Learn skills from this YouTube transcript and produce a reproducible procedure.',
-      'Output must include:',
-      '1) Skills Learned (bulleted)',
-      '2) Step-by-Step Procedure (numbered)',
-      '3) Checklist for Reproduction (bulleted)',
+      'Respond with JSON ONLY (no prose) shaped exactly as:',
+      '{"summary": string, "skills": [string], "procedure": [string], "checklist": [string]}',
+      'Rules: keep items concise; max 8 bullets in each list; no markdown; no extra fields.',
       focus,
       `Transcript: ${transcript.slice(0, 12000)}`,
     ].join('\n');
   }
   return `Unsupported task type: ${task.type}`;
+}
+
+function parseFirstJson(text) {
+  if (!text) return null;
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
 }
 
 function resolveProviderConfig(providerName, preferredModel) {
@@ -86,7 +96,15 @@ async function runGrokAdapter(payload) {
     return { status: 'failure', error: 'xAI API error.' };
   }
 
-  return { status: 'success', output: response.text };
+  let output = response.text;
+  if (task.type === 'youtube_analysis') {
+    const parsed = parseFirstJson(response.text);
+    if (parsed && parsed.summary && parsed.skills && parsed.procedure && parsed.checklist) {
+      output = parsed;
+    }
+  }
+
+  return { status: 'success', output };
 }
 
 async function main() {
