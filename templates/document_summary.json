@@ -3,7 +3,7 @@
   "label": "Document Summary",
   "description": "Summarize a document with key points and action items.",
   "inputs": {
-    "source": { "type": "string", "required": true },
+    "source": { "type": "url", "required": true },
     "length": { "type": "string", "required": false }
   },
   "agentRole": "Planner",

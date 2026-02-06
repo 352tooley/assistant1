@@ -3,7 +3,7 @@
   "label": "YouTube Analysis",
   "description": "Analyze a YouTube video for key takeaways, structure, and recommendations.",
   "inputs": {
-    "url": { "type": "string", "required": true },
+    "url": { "type": "url", "required": true },
     "focus": { "type": "string", "required": false }
   },
   "agentRole": "Research",

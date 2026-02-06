@@ -188,6 +188,20 @@ body {
   font-family: inherit;
 }
 
+.input-row select {
+  background: #0f1217;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.input-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+}
+
 .input-row.missing input {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);

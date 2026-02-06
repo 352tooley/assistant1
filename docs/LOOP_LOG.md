@@ -4522,3 +4522,35 @@
 - operatorIntent: status
 - result: rejected
 - detail: state_corrupt
+
+## 2026-02-06T11:55:32.129Z
+- Event: Approved task
+- cliCommand: desktop:approve
+- operatorIntent: approveAndRun
+- templateId: web_build_basic
+- status: success
+- mode: standard
+- inputs: {"siteName":"Acme Site","theme":"Minimal"}
+- allowsClaude: false
+- maxCycles: 1
+- maxRuntimeMs: 120000
+- usage: codexCalls=1, claudeCalls=0
+- outputSummary: WEB_BUILD_BASIC: WEB BUILD BASIC {"SITENAME":"ACME SITE","THEME":"MINIMAL"}
+
+## 2026-02-06T11:55:35.782Z
+- Event: Approved task
+- cliCommand: desktop:approve
+- operatorIntent: approveAndRun
+- templateId: web_build_basic
+- status: rejected
+- rejectionReason: Missing required inputs: siteName
+- mode: standard
+
+## 2026-02-06T11:55:39.010Z
+- Event: Approved task
+- cliCommand: desktop:approve
+- operatorIntent: approveAndRun
+- templateId: document_summary
+- status: rejected
+- rejectionReason: maxCycles exceeds template limit.
+- mode: standard

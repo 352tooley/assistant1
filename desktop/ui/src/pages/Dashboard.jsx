@@ -2,7 +2,7 @@ import React from 'react';
 import StatusCard from '../components/StatusCard.jsx';
 import UsageSummary from '../components/UsageSummary.jsx';
 
-export default function Dashboard({ status }) {
+export default function Dashboard({ status, lastRun, onNavigate }) {
   const data = status || {
     pending: 0,
     completed: 0,
@@ -11,6 +11,8 @@ export default function Dashboard({ status }) {
     mode: 'standard',
     usage: { codexCalls: 0, claudeCalls: 0 },
   };
+  const lastRunStatus = lastRun ? `${lastRun.status}` : 'none';
+  const lastRunTime = lastRun?.timestamp || data.lastRunTimestamp || 'unknown';
 
   return (
     <section className="page">
@@ -25,7 +27,8 @@ export default function Dashboard({ status }) {
           <StatusCard label="Pending" value={data.pending} />
           <StatusCard label="Completed" value={data.completed} />
           <StatusCard label="Failed" value={data.failed} />
-          <StatusCard label="Last Run" value={data.lastRunTimestamp || 'unknown'} />
+          <StatusCard label="Last Run" value={lastRunTime} />
+          <StatusCard label="Last Run Status" value={lastRunStatus} />
           <StatusCard label="Routing Mode" value={data.mode} />
         </div>
 
@@ -33,6 +36,13 @@ export default function Dashboard({ status }) {
           <h2>Usage Summary</h2>
           <UsageSummary usage={data.usage} />
           <p className="muted">Usage is approximate; execution remains controlled.</p>
+          <button
+            className="ghost-button"
+            type="button"
+            onClick={() => onNavigate && onNavigate('activity')}
+          >
+            View Recent Activity
+          </button>
         </div>
       </div>
     </section>

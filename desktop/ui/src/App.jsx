@@ -25,10 +25,21 @@ const fallbackApi = {
     { id: 'claude', name: 'Claude', role: 'Diagnostician', status: 'standby' },
   ],
   buildTaskPreview: async (text) => ({
-    taskType: 'text_transform',
-    inputs: { naturalLanguage: text },
-    assignedAgent: 'Codex',
-    claudeEscalationAllowed: true,
+    template: {
+      id: 'web_build_basic',
+      label: 'Web Build Basic',
+      agentRole: 'DevOps',
+      allowsClaude: false,
+      maxCycles: 3,
+      inputs: { siteName: { type: 'string', required: true } },
+    },
+    confidence: text ? 72 : 0,
+    extractedInputs: { siteName: text },
+    missingInputs: text ? [] : ['siteName'],
+  }),
+  executeApprovedTask: async () => ({
+    status: 'rejected',
+    message: 'Desktop IPC unavailable.',
   }),
 };
 
@@ -36,8 +47,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [status, setStatus] = useState(null);
   const [agents, setAgents] = useState([]);
+  const [lastRun, setLastRun] = useState(null);
 
   const api = useMemo(() => window.assistant1 || fallbackApi, []);
+
+  const refreshStatus = () => {
+    api.getStatus().then((data) => setStatus(data));
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -53,7 +69,7 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-title">assistant1</span>
-          <span className="brand-subtitle">Desktop Control Center V1</span>
+          <span className="brand-subtitle">Desktop Control Center V2</span>
         </div>
         <nav className="nav">
           {tabs.map((tab) => (
@@ -68,14 +84,24 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <p className="muted">Execution disabled in V1</p>
+          <p className="muted">Execution requires explicit approval</p>
         </div>
       </aside>
       <main className="content">
-        {activeTab === 'dashboard' && <Dashboard status={status} />}
+        {activeTab === 'dashboard' && (
+          <Dashboard status={status} lastRun={lastRun} onNavigate={setActiveTab} />
+        )}
         {activeTab === 'agents' && <Agents agents={agents} />}
-        {activeTab === 'builder' && <TaskBuilder api={api} />}
-        {activeTab === 'activity' && <Activity />}
+        {activeTab === 'builder' && (
+          <TaskBuilder
+            api={api}
+            onRunComplete={(result) => {
+              setLastRun(result);
+              refreshStatus();
+            }}
+          />
+        )}
+        {activeTab === 'activity' && <Activity lastRun={lastRun} />}
       </main>
     </div>
   );

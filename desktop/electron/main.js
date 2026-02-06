@@ -61,6 +61,15 @@ function registerIpc() {
       return { error: String(error) };
     }
   });
+
+  ipcMain.handle('execute-approved-task', async (_event, taskRequest) => {
+    try {
+      const { runApprovedTask } = resolveOrchestrator();
+      return runApprovedTask(taskRequest, { cliCommand: 'desktop:approve', operatorIntent: 'approveAndRun' });
+    } catch (error) {
+      return { status: 'rejected', message: String(error) };
+    }
+  });
 }
 
 app.whenReady().then(() => {

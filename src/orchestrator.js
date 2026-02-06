@@ -10,6 +10,8 @@ const { normalizeMode, chooseProvider } = require('./routingPolicy');
 const { planTask } = require('./advisors/planner');
 const { critiquePlan } = require('./advisors/critic');
 const { resolvePriority } = require('./advisors/ceo');
+const { validateTaskRequest } = require('./taskValidator');
+const { buildTaskRunResult } = require('./taskRequest');
 const {
   runtimePath,
   loadState,
@@ -170,6 +172,18 @@ function formatExpectedOutput(value) {
   return JSON.stringify(value);
 }
 
+function buildInternalTaskFromTemplate(template, inputs) {
+  const description = `${template.id}: ${template.label}`;
+  const payload = JSON.stringify(inputs || {});
+  const text = `${description} ${payload}`;
+  return {
+    id: `approved-${template.id}-${Date.now()}`,
+    type: 'text_transform',
+    input: { text, mode: 'upper' },
+    expectedOutput: text.toUpperCase(),
+  };
+}
+
 function applyFixPacket(packet, state, taskId, correctedOutput) {
   if (!packet || packet.proposedFix.strategy !== 'fix-task-definition') {
     return { applied: false, reason: 'Unsupported fix strategy.', filesModified: [] };
@@ -236,7 +250,7 @@ function applyForwardFix(packet, state, taskId, correctedOutput) {
   return { applied: true, reason: 'Fix applied.', filesModified: applied.filesModified, commitHash };
 }
 
-function runRoutingCycle(task, state, currentCommit, diffSummary, mode) {
+function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttempts = 2, allowClaude = true) {
   const routingLog = [];
   let result = null;
   let escalationReason = null;
@@ -247,7 +261,9 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode) {
   let advisorAdvice = null;
   let advisorDecision = null;
 
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  routingLog.push(`- Claude allowed: ${allowClaude ? 'true' : 'false'}`);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const providerDecision = chooseProvider({ task, failureInfo: {}, state, mode, phase: 'codex', attemptCounts: { codexAttempts: codexAttempts.count } });
     routingLog.push(`- Provider chosen: ${providerDecision.provider} (attempt ${attempt})`);
     routingLog.push(`- Routing mode: ${providerDecision.mode}`);
@@ -370,6 +386,28 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode) {
     routingLog.push(`- Routing mode: ${escalationDecision.mode}`);
     routingLog.push(`- Routing reason: ${escalationDecision.reason}`);
 
+    if (!allowClaude && escalationDecision.provider === 'claude') {
+      routingLog.push('- Claude escalation suppressed: not allowed by request.');
+      recordEscalationReason(state, {
+        provider: 'claude',
+        reason: 'claude_disallowed',
+        taskId: task.id,
+        mode: escalationDecision.mode,
+      });
+      return {
+        finalAgent: 'Codex',
+        result: { status: 'failure', error: 'Claude not allowed for this task.' },
+        routingLog,
+        escalationReason: 'claude_disallowed',
+        escalationOccurred: false,
+        claudeStatus: null,
+        fixPacket: null,
+        lastFailure,
+        regressionDetected,
+        regressionInfo,
+      };
+    }
+
     if (escalationDecision.provider !== 'claude') {
       routingLog.push('- Budget mode suppression: Claude eligible but suppressed by policy.');
       recordEscalationReason(state, {
@@ -465,6 +503,28 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode) {
   routingLog.push(`- Provider chosen: ${escalationDecision.provider}`);
   routingLog.push(`- Routing mode: ${escalationDecision.mode}`);
   routingLog.push(`- Routing reason: ${escalationDecision.reason}`);
+
+  if (!allowClaude && escalationDecision.provider === 'claude') {
+    routingLog.push('- Claude escalation suppressed: not allowed by request.');
+    recordEscalationReason(state, {
+      provider: 'claude',
+      reason: 'claude_disallowed',
+      taskId: task.id,
+      mode: escalationDecision.mode,
+    });
+    return {
+      finalAgent: 'Codex',
+      result: { status: 'failure', error: 'Claude not allowed for this task.' },
+      routingLog,
+      escalationReason: 'claude_disallowed',
+      escalationOccurred: false,
+      claudeStatus: null,
+      fixPacket: null,
+      lastFailure,
+      regressionDetected: false,
+      regressionInfo: null,
+    };
+  }
 
   if (escalationDecision.provider !== 'claude') {
     routingLog.push('- Budget mode suppression: Claude eligible but suppressed by policy.');
@@ -871,7 +931,8 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
   while (nextTask) {
     const { resumed } = markTaskDispatched(state, nextTask.id);
     const cycle = cycleStart + cycleIndex;
-    const routing = runRoutingCycle(nextTask, state, currentCommit, diffSummary, mode);
+    const allowClaude = typeof nextTask.allowsClaude === 'boolean' ? nextTask.allowsClaude : true;
+    const routing = runRoutingCycle(nextTask, state, currentCommit, diffSummary, mode, 2, allowClaude);
     const timestamp = new Date().toISOString();
 
     let fixStatus = null;
@@ -1113,10 +1174,117 @@ function resetOnly(meta = {}) {
   });
 }
 
+function runApprovedTask(taskRequest, meta = {}) {
+  const validation = validateTaskRequest(taskRequest);
+  const timestamp = new Date().toISOString();
+  const mode = normalizeMode(taskRequest && taskRequest.mode);
+  const cliCommand = meta.cliCommand || 'desktop:approve';
+  const operatorIntent = meta.operatorIntent || 'approveAndRun';
+
+  if (!validation.ok) {
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Approved task',
+      `- cliCommand: ${cliCommand}`,
+      `- operatorIntent: ${operatorIntent}`,
+      `- templateId: ${(taskRequest && taskRequest.templateId) || 'unknown'}`,
+      `- status: rejected`,
+      `- rejectionReason: ${validation.reason}`,
+      `- mode: ${mode}`,
+    ]);
+    return buildTaskRunResult({
+      status: 'rejected',
+      message: validation.reason,
+      logHint: { lastEntries: 1, lastTimestamp: timestamp },
+    });
+  }
+
+  const template = validation.template;
+  const internalTask = buildInternalTaskFromTemplate(template, taskRequest.inputs);
+  const limits = taskRequest.limits || {};
+  const maxCycles = Number.isFinite(limits.maxCycles) ? limits.maxCycles : template.maxCycles;
+  const maxRuntimeMs = Number.isFinite(limits.maxRuntimeMs) ? limits.maxRuntimeMs : 120000;
+  const startTime = Date.now();
+
+  if (!Number.isFinite(maxCycles) || maxCycles < 1) {
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Approved task',
+      `- cliCommand: ${cliCommand}`,
+      `- operatorIntent: ${operatorIntent}`,
+      `- templateId: ${template.id}`,
+      '- status: rejected',
+      '- rejectionReason: invalid maxCycles',
+    ]);
+    return buildTaskRunResult({
+      status: 'rejected',
+      message: 'invalid maxCycles',
+      logHint: { lastEntries: 1, lastTimestamp: timestamp },
+    });
+  }
+
+  const localState = {
+    failureCounts: {},
+    failuresPerCommit: {},
+    usage: { codexCalls: 0, claudeCalls: 0, escalationReasons: [] },
+  };
+  const routing = runRoutingCycle(
+    internalTask,
+    localState,
+    getCurrentCommit(),
+    'diff unavailable',
+    mode,
+    maxCycles,
+    taskRequest.allowsClaude,
+  );
+
+  const elapsed = Date.now() - startTime;
+  const status = routing.result.status === 'success' ? 'success' : 'failure';
+  const summary = routing.result.output ? summarize(routing.result.output) : summarize(routing.result.error);
+  const inputsSummary = summarize(taskRequest.inputs);
+  const usageSnapshot = localState.usage || { codexCalls: 0, claudeCalls: 0 };
+
+  appendLoopLog([
+    '',
+    `## ${timestamp}`,
+    '- Event: Approved task',
+    `- cliCommand: ${cliCommand}`,
+    `- operatorIntent: ${operatorIntent}`,
+    `- templateId: ${template.id}`,
+    `- status: ${status}`,
+    `- mode: ${mode}`,
+    `- inputs: ${inputsSummary}`,
+    `- allowsClaude: ${taskRequest.allowsClaude ? 'true' : 'false'}`,
+    `- maxCycles: ${maxCycles}`,
+    `- maxRuntimeMs: ${maxRuntimeMs}`,
+    `- usage: codexCalls=${usageSnapshot.codexCalls || 0}, claudeCalls=${usageSnapshot.claudeCalls || 0}`,
+    `- outputSummary: ${summary}`,
+  ]);
+
+  if (elapsed > maxRuntimeMs) {
+    return buildTaskRunResult({
+      status: 'failure',
+      message: 'maxRuntimeMs exceeded',
+      outputSummary: summary,
+      logHint: { lastEntries: 1, lastTimestamp: timestamp },
+    });
+  }
+
+  return buildTaskRunResult({
+    status,
+    message: status === 'success' ? 'Task completed.' : 'Task failed.',
+    outputSummary: summary,
+    logHint: { lastEntries: 1, lastTimestamp: timestamp },
+  });
+}
+
 module.exports = {
   runOnce,
   runHeadless,
   getStatusSnapshot,
+  runApprovedTask,
   resetOnly,
   logCliEvent,
 };

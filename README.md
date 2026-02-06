@@ -59,7 +59,7 @@ touch state/STOP
 
 ## Desktop Control Center (Experimental)
 
-The desktop UI is a visual control surface for status and preview only.
+The desktop UI is a visual control surface for status, preview, and approved execution.
 
 ### How to run
 ```bash
@@ -72,11 +72,15 @@ npm run dev
 - Displays engine status via IPC (read-only).
 - Shows static agent roster and activity.
 - Generates a task preview from natural language.
+- Runs approved tasks immediately using the orchestrator (bounded and logged).
 
 ### What it does NOT do
-- Execute tasks.
-- Modify engine state.
-- Bypass orchestrator safeguards.
+- Execute freeform prompts.
+- Modify engine state outside the orchestrator.
+- Bypass orchestrator safeguards or routing policy.
+
+### Approved execution
+Clicking Approve creates a validated task request from a template and runs a single bounded orchestration cycle. Limits are enforced (max cycles/runtime, Claude allowance). Results and decisions are logged to `docs/LOOP_LOG.md`.
 
 ## Task Templates
 
