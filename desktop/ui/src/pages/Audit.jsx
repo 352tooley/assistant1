@@ -26,6 +26,9 @@ function renderTags(run) {
   if (run && run.advisorRequested === 'claude') {
     tags.push({ id: 'claude', label: 'Claude-Required', className: 'status-pill status-pill--info' });
   }
+  if (run && run.providerSelected) {
+    tags.push({ id: 'provider', label: 'Provider', className: 'status-pill status-pill--info' });
+  }
   return tags;
 }
 
@@ -155,6 +158,14 @@ export default function Audit({ api }) {
               <div className="stat-row">
                 <span>Mode</span>
                 <strong>{activeRun.mode}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Provider</span>
+                <strong>{activeRun.providerSelected || 'auto'}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Provider Role</span>
+                <strong>{activeRun.providerRole || 'auto'}</strong>
               </div>
               <div className="stat-row">
                 <span>Advisor</span>

@@ -5,3 +5,5 @@ build/
 Thumbs.db
 .idea/
 .vscode/
+providers/providers.local.json
+providers/*.local.json

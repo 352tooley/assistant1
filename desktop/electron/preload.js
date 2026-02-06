@@ -29,6 +29,13 @@ const api = {
     safeInvoke('run-dry-run', config, { status: 'rejected', message: 'IPC unavailable.' }),
   checkClaudeAvailability: () =>
     safeInvoke('check-claude-availability', undefined, { ok: false, reason: 'ipc_unavailable' }),
+  listAvailableProviders: () =>
+    safeInvoke('list-available-providers', undefined, { registry: {}, providers: [] }),
+  addProvider: (payload) => safeInvoke('add-provider', payload, { ok: false, reason: 'ipc_unavailable' }),
+  enableProvider: (name) => safeInvoke('enable-provider', name, { ok: false, reason: 'ipc_unavailable' }),
+  disableProvider: (name) => safeInvoke('disable-provider', name, { ok: false, reason: 'ipc_unavailable' }),
+  assignRoles: (payload) => safeInvoke('assign-roles', payload, { ok: false, reason: 'ipc_unavailable' }),
+  assignProjects: (payload) => safeInvoke('assign-projects', payload, { ok: false, reason: 'ipc_unavailable' }),
   getLiveRunStatus: () => safeInvoke('get-live-run-status', undefined, null),
   getAuditSummary: () => safeInvoke('get-audit-summary', undefined, null),
   getAuditRuns: (filters) => safeInvoke('get-audit-runs', filters, []),

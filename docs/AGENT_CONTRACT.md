@@ -42,6 +42,11 @@
 - Headless mode obeys the same Claude invocation rules as run-once.
 - Dry-run performs validation and availability checks only; it never executes tasks.
 
+## Providers and Roles
+- Providers are user-defined and stored locally; UI only sends intent.
+- Roles constrain behavior; the engine enforces role compatibility.
+- Provider auth and enablement are validated before execution or dry-run.
+
 ## Stop Conditions
 - All acceptance criteria are met and validated.
 - Any gate fails or an escalation condition is triggered.

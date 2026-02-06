@@ -191,6 +191,8 @@ function registerIpc() {
         maxTasks: 1,
         mode: config && config.mode ? config.mode : 'standard',
         requestedAdvisor: config && config.requestedAdvisor ? config.requestedAdvisor : 'auto',
+        preferredProvider: config && config.preferredProvider ? config.preferredProvider : '',
+        preferredRole: config && config.preferredRole ? config.preferredRole : '',
         dryRun: true,
         pollIntervalMs: 5000,
         maxCycles: 1,
@@ -209,6 +211,60 @@ function registerIpc() {
     try {
       const { isClaudeCallable } = require(path.join(repoRoot, 'src', 'agents', 'claudeAdapter.js'));
       return isClaudeCallable('user_requested_cli');
+    } catch (error) {
+      return { ok: false, reason: 'error' };
+    }
+  });
+
+  ipcMain.handle('list-available-providers', async () => {
+    try {
+      const { getAvailableProviders } = require(path.join(repoRoot, 'src', 'providerManager.js'));
+      return getAvailableProviders();
+    } catch (error) {
+      return { registry: {}, providers: [] };
+    }
+  });
+
+  ipcMain.handle('add-provider', async (_event, payload) => {
+    try {
+      const { addProvider } = require(path.join(repoRoot, 'src', 'providerManager.js'));
+      return addProvider(payload || {});
+    } catch (error) {
+      return { ok: false, reason: 'error' };
+    }
+  });
+
+  ipcMain.handle('enable-provider', async (_event, name) => {
+    try {
+      const { enableProvider } = require(path.join(repoRoot, 'src', 'providerManager.js'));
+      return enableProvider(name);
+    } catch (error) {
+      return { ok: false, reason: 'error' };
+    }
+  });
+
+  ipcMain.handle('disable-provider', async (_event, name) => {
+    try {
+      const { disableProvider } = require(path.join(repoRoot, 'src', 'providerManager.js'));
+      return disableProvider(name);
+    } catch (error) {
+      return { ok: false, reason: 'error' };
+    }
+  });
+
+  ipcMain.handle('assign-roles', async (_event, payload) => {
+    try {
+      const { assignRoles } = require(path.join(repoRoot, 'src', 'providerManager.js'));
+      return assignRoles(payload && payload.name, payload && payload.roles);
+    } catch (error) {
+      return { ok: false, reason: 'error' };
+    }
+  });
+
+  ipcMain.handle('assign-projects', async (_event, payload) => {
+    try {
+      const { assignProjects } = require(path.join(repoRoot, 'src', 'providerManager.js'));
+      return assignProjects(payload && payload.name, payload && payload.projects);
     } catch (error) {
       return { ok: false, reason: 'error' };
     }

@@ -24,7 +24,7 @@ function describeClaudeStatus(claudeStatus) {
   return { label: 'Unavailable', detail: 'Claude adapter not callable.' };
 }
 
-export default function Dashboard({ status, lastRun, liveStatus, claudeStatus, onNavigate }) {
+export default function Dashboard({ status, lastRun, liveStatus, claudeStatus, providerData, onProvidersChange, api, onNavigate }) {
   const data = status || {
     pending: 0,
     completed: 0,
@@ -42,6 +42,69 @@ export default function Dashboard({ status, lastRun, liveStatus, claudeStatus, o
   const claudeInfo = describeClaudeStatus(claudeStatus);
   const claudeAccent = claudeStatus && claudeStatus.ok ? theme.accent.green : theme.accent.red;
   const claudePill = claudeStatus && claudeStatus.ok ? 'status-pill status-pill--ok' : 'status-pill status-pill--error';
+  const registry = providerData?.registry || {};
+  const providers = Array.isArray(providerData?.providers) ? providerData.providers : [];
+  const [newProviderType, setNewProviderType] = React.useState('openai');
+  const [newProviderName, setNewProviderName] = React.useState('');
+  const [newAuthMethod, setNewAuthMethod] = React.useState('apiKey');
+  const apiKeyRef = React.useRef(null);
+  const projectRefs = React.useRef({});
+
+  const handleAddProvider = async () => {
+    const apiKey = apiKeyRef.current ? apiKeyRef.current.value : '';
+    await api.addProvider({
+      type: newProviderType,
+      name: newProviderName.trim(),
+      authMethod: newAuthMethod,
+      apiKey: newAuthMethod === 'apiKey' ? apiKey : undefined,
+    });
+    if (apiKeyRef.current) {
+      apiKeyRef.current.value = '';
+    }
+    setNewProviderName('');
+    if (onProvidersChange) {
+      onProvidersChange();
+    }
+  };
+
+  const toggleProvider = async (provider) => {
+    if (!provider) {
+      return;
+    }
+    if (provider.enabled) {
+      await api.disableProvider(provider.name);
+    } else {
+      await api.enableProvider(provider.name);
+    }
+    if (onProvidersChange) {
+      onProvidersChange();
+    }
+  };
+
+  const updateRoles = async (provider, role, checked) => {
+    if (!provider) {
+      return;
+    }
+    const nextRoles = checked
+      ? Array.from(new Set([...(provider.roles || []), role]))
+      : (provider.roles || []).filter((item) => item !== role);
+    await api.assignRoles({ name: provider.name, roles: nextRoles });
+    if (onProvidersChange) {
+      onProvidersChange();
+    }
+  };
+
+  const updateProjects = async (provider) => {
+    if (!provider) {
+      return;
+    }
+    const input = projectRefs.current[provider.name];
+    const value = input ? input.value : '';
+    await api.assignProjects({ name: provider.name, projects: value });
+    if (onProvidersChange) {
+      onProvidersChange();
+    }
+  };
 
   return (
     <section className="page">
@@ -106,6 +169,101 @@ export default function Dashboard({ status, lastRun, liveStatus, claudeStatus, o
           </div>
           <p className="muted">{claudeInfo.detail}</p>
           <p className="muted">Claude is only invoked when explicitly requested.</p>
+        </Card>
+
+        <Card title="AI Providers" accent={theme.accent.blue}>
+          <div className="preview-inputs">
+            <label className="input-row">
+              <span>Provider Type</span>
+              <select value={newProviderType} onChange={(event) => setNewProviderType(event.target.value)}>
+                {Object.keys(registry).map((key) => (
+                  <option key={key} value={key}>
+                    {registry[key].label || key}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="input-row">
+              <span>Name</span>
+              <input
+                type="text"
+                value={newProviderName}
+                onChange={(event) => setNewProviderName(event.target.value)}
+                placeholder="myClaude"
+              />
+            </label>
+            <label className="input-row">
+              <span>Auth Method</span>
+              <select value={newAuthMethod} onChange={(event) => setNewAuthMethod(event.target.value)}>
+                {(registry[newProviderType]?.auth || ['apiKey']).map((auth) => (
+                  <option key={auth} value={auth}>
+                    {auth}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {newAuthMethod === 'apiKey' ? (
+              <label className="input-row">
+                <span>API Key</span>
+                <input type="password" placeholder="sk-..." ref={apiKeyRef} />
+              </label>
+            ) : (
+              <div className="oauth-row">
+                <button className="ghost-button" type="button" disabled>
+                  Sign in
+                </button>
+                <span className="muted">OAuth requires a provider-specific sign-in flow.</span>
+              </div>
+            )}
+            <button className="primary" type="button" onClick={handleAddProvider} disabled={!newProviderName.trim()}>
+              Add Provider
+            </button>
+          </div>
+          <div className="divider" />
+          {providers.length === 0 ? (
+            <p className="muted">No providers configured.</p>
+          ) : (
+            providers.map((provider) => {
+              const ready = provider.enabled && (provider.authStatus.apiKey || provider.authStatus.oauth);
+              const statusClass = ready ? 'status-pill status-pill--ok' : 'status-pill status-pill--warning';
+              return (
+                <div key={provider.name} className="provider-row">
+                  <div>
+                    <strong>{provider.name}</strong>
+                    <p className="muted">{provider.label}</p>
+                  </div>
+                  <span className={statusClass}>{ready ? 'Ready' : 'Missing Auth'}</span>
+                  <button className="ghost-button" type="button" onClick={() => toggleProvider(provider)}>
+                    {provider.enabled ? 'Disable' : 'Enable'}
+                  </button>
+                  <div className="provider-roles">
+                    {(provider.allowedRoles || []).map((role) => (
+                      <label key={role} className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={provider.roles.includes(role)}
+                          onChange={(event) => updateRoles(provider, role, event.target.checked)}
+                        />
+                        <span>{role}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="provider-projects">
+                    <input
+                      type="text"
+                      placeholder="project-a, project-b"
+                      ref={(el) => {
+                        projectRefs.current[provider.name] = el;
+                      }}
+                    />
+                    <button className="ghost-button" type="button" onClick={() => updateProjects(provider)}>
+                      Save Projects
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </Card>
 
         <Card title="Recent Signal" accent={theme.accent.blue}>

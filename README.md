@@ -28,6 +28,22 @@ node src/cli.js run-once --advisor=claude
 node src/cli.js run-once --advisor=claude --dry-run
 ```
 
+## AI Providers (Dashboard-Controlled, Engine-Enforced)
+
+Operators can register local AI providers and assign roles without moving execution authority out of the engine.
+
+### Add a Provider
+1. Open the Desktop Dashboard and use the **AI Providers** card.
+2. Choose a provider type, name it, and supply credentials.
+3. Assign roles and projects.
+4. Credentials are stored locally in `providers/providers.local.json` (gitignored).
+
+### Validate
+Use **Dry-Run Check** in Task Builder to validate provider + role readiness before execution.
+
+### Execute
+Approved execution still flows through the orchestrator. Provider intent is validated at runtime and blocked if invalid.
+
 ### Headless (Always-On)
 ```bash
 node src/cli.js headless start --max-cycles=10 --max-runtime-ms=60000 --poll-interval-ms=5000

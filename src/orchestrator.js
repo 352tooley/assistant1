@@ -17,6 +17,7 @@ const { validateTaskRequest } = require('./taskValidator');
 const { buildTaskRunResult } = require('./taskRequest');
 const { createRunStatus, updateRunStatus } = require('./runStatus');
 const { appendAuditEntry } = require('./auditReader');
+const { validateProviderForRun } = require('./providerManager');
 const {
   runtimePath,
   loadState,
@@ -981,6 +982,11 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
 
   if (options.dryRun) {
     const availability = isClaudeCallable('user_requested_cli');
+    const providerCheck = validateProviderForRun({
+      preferredProvider: options.preferredProvider,
+      preferredRole: options.preferredRole,
+      preferredModel: options.preferredModel,
+    });
     const timestamp = new Date().toISOString();
     const runId = `dry-run-${Date.now()}`;
     appendLoopLog([
@@ -993,6 +999,48 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
       cliCommand ? `- cliCommand: ${cliCommand}` : '- cliCommand: none',
       operatorIntent ? `- operatorIntent: ${operatorIntent}` : '- operatorIntent: none',
     ]);
+    if (!providerCheck.ok) {
+      try {
+        appendAuditEntry({
+          runId,
+          timestamp,
+          templateId: 'dry-run',
+          agentRole: 'operator',
+          mode,
+          status: 'rejected',
+          phases: [{ phase: 'Validating', message: providerCheck.reason, at: timestamp }],
+          decisions: [
+            {
+              type: 'provider_blocked',
+              reason: providerCheck.reason,
+              policy: 'provider_manager',
+            },
+          ],
+          limits: {
+            maxCycles: options.maxCycles || 0,
+            cyclesUsed: 0,
+            allowsClaude: false,
+          },
+          compliance: {
+            templateMatched: false,
+            limitsEnforced: true,
+            policyRespected: true,
+          },
+          advisorRequested: options.requestedAdvisor || 'auto',
+          headlessIntent: Boolean(headlessMode),
+          dryRun: true,
+          providerSelected: options.preferredProvider || '',
+          providerRole: options.preferredRole || '',
+        });
+      } catch {
+        // Ignore audit failures in dry-run.
+      }
+      return {
+        status: 'rejected',
+        message: providerCheck.reason,
+        claudeAvailable: availability.ok,
+      };
+    }
     if (options.requestedAdvisor === 'claude' && !availability.ok) {
       try {
         appendAuditEntry({
@@ -1017,6 +1065,8 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
           advisorRequested: options.requestedAdvisor || 'auto',
           headlessIntent: Boolean(headlessMode),
           dryRun: true,
+          providerSelected: options.preferredProvider || '',
+          providerRole: options.preferredRole || '',
         });
       } catch {
         // Ignore audit failures in dry-run.
@@ -1046,6 +1096,8 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
         advisorRequested: options.requestedAdvisor || 'auto',
         headlessIntent: Boolean(headlessMode),
         dryRun: true,
+        providerSelected: options.preferredProvider || '',
+        providerRole: options.preferredRole || '',
       });
     } catch {
       // Ignore audit failures in dry-run.
@@ -1524,6 +1576,85 @@ function runApprovedTask(taskRequest, meta = {}) {
     return result;
   }
 
+  const providerCheck = validateProviderForRun({
+    preferredProvider: taskRequest && taskRequest.preferredProvider,
+    preferredRole: taskRequest && taskRequest.preferredRole,
+    preferredModel: taskRequest && taskRequest.preferredModel,
+  });
+  if (!providerCheck.ok) {
+    currentRunStatus = updateRunStatus(currentRunStatus, {
+      status: 'rejected',
+      phase: 'Validating',
+      message: providerCheck.reason,
+    });
+    addPhase('Validating', providerCheck.reason);
+    decisions.push({
+      type: 'provider_blocked',
+      reason: providerCheck.reason,
+      policy: 'provider_manager',
+    });
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Approved task',
+      `- cliCommand: ${cliCommand}`,
+      `- operatorIntent: ${operatorIntent}`,
+      `- templateId: ${(taskRequest && taskRequest.templateId) || 'unknown'}`,
+      `- status: rejected`,
+      `- rejectionReason: ${providerCheck.reason}`,
+      `- mode: ${mode}`,
+    ]);
+    const result = buildTaskRunResult({
+      status: 'rejected',
+      message: providerCheck.reason,
+      logHint: { lastEntries: 1, lastTimestamp: timestamp },
+    });
+    try {
+      appendAuditEntry({
+        runId,
+        timestamp,
+        templateId: (taskRequest && taskRequest.templateId) || 'unknown',
+        agentRole: (taskRequest && taskRequest.requestedAgentRole) || 'unknown',
+        mode,
+        status: 'rejected',
+        phases,
+        decisions,
+        limits: {
+          maxCycles: taskRequest && taskRequest.limits ? taskRequest.limits.maxCycles : null,
+          cyclesUsed: 0,
+          allowsClaude: Boolean(taskRequest && taskRequest.allowsClaude),
+        },
+        compliance: {
+          templateMatched: true,
+          limitsEnforced: true,
+          policyRespected: true,
+        },
+        advisorRequested: requestedAdvisor,
+        headlessIntent: false,
+        dryRun: false,
+        providerSelected: taskRequest && taskRequest.preferredProvider ? taskRequest.preferredProvider : '',
+        providerRole: taskRequest && taskRequest.preferredRole ? taskRequest.preferredRole : '',
+      });
+    } catch (error) {
+      appendLoopLog([
+        '',
+        `## ${new Date().toISOString()}`,
+        '- Event: Audit warning',
+        `- Warning: Failed to write audit index (${String(error)})`,
+      ]);
+    }
+    currentRunStatus = null;
+    return result;
+  }
+
+  if (providerCheck.provider) {
+    decisions.push({
+      type: 'provider_selected',
+      reason: `Provider ${providerCheck.provider.name} validated for role ${taskRequest.preferredRole || 'auto'}.`,
+      policy: 'provider_manager',
+    });
+  }
+
   const template = validation.template;
   const state = loadState().state || null;
   addPhase('Validating', 'Template validated and inputs accepted.');
@@ -1802,6 +1933,8 @@ function runApprovedTask(taskRequest, meta = {}) {
       advisorRequested: requestedAdvisor,
       headlessIntent: false,
       dryRun: false,
+      providerSelected: taskRequest && taskRequest.preferredProvider ? taskRequest.preferredProvider : '',
+      providerRole: taskRequest && taskRequest.preferredRole ? taskRequest.preferredRole : '',
     });
   } catch (error) {
     appendLoopLog([

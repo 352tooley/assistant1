@@ -45,7 +45,7 @@ function explainClaudeAvailability(claudeStatus) {
   return { ok: false, reason: 'Claude adapter unavailable.' };
 }
 
-export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStatus }) {
+export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStatus, providerData }) {
   const [input, setInput] = useState('');
   const [preview, setPreview] = useState(null);
   const [formInputs, setFormInputs] = useState({});
@@ -61,6 +61,8 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
   const [dryRunResult, setDryRunResult] = useState(null);
   const [dryRunRunning, setDryRunRunning] = useState(false);
   const [frozenStatus, setFrozenStatus] = useState(null);
+  const [preferredProvider, setPreferredProvider] = useState('');
+  const [preferredRole, setPreferredRole] = useState('');
 
   const onPreview = async () => {
     setMessage('');
@@ -91,6 +93,8 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
       requestedAdvisor,
       mode,
       headless: executionMode === 'headless',
+      preferredProvider,
+      preferredRole,
     });
     setDryRunRunning(false);
     setDryRunResult(result);
@@ -114,6 +118,8 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
       requestedAgentRole: preview.template.agentRole,
       requestedAdvisor,
       mode,
+      preferredProvider,
+      preferredRole,
       limits: {
         maxCycles: Math.min(Number(maxCycles) || 1, preview.template.maxCycles),
         maxRuntimeMs: 120000,
@@ -162,13 +168,18 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
   const claudeAvailability = explainClaudeAvailability(claudeStatus);
   const claudeBlocked = requestedAdvisor === 'claude' && !claudeAvailability.ok;
   const headlessSelected = executionMode === 'headless';
+  const providers = Array.isArray(providerData?.providers) ? providerData.providers : [];
+  const selectedProvider = providers.find((provider) => provider.name === preferredProvider);
+  const providerReady = !preferredProvider || (selectedProvider && selectedProvider.enabled && (selectedProvider.authStatus.apiKey || selectedProvider.authStatus.oauth));
+  const providerBlocked = Boolean(preferredProvider) && !providerReady;
   const approveDisabled =
     missingInputs.length > 0 ||
     !preview?.template ||
     running ||
     dryRunSelected ||
     headlessSelected ||
-    claudeBlocked;
+    claudeBlocked ||
+    providerBlocked;
 
   const hasTemplate = Boolean(preview?.template);
   const readiness = missingInputs.length > 0 ? 'missing' : hasTemplate ? 'ready' : 'blocked';
@@ -231,6 +242,11 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
         {claudeBlocked ? (
           <p className="muted">
             Claude was requested but is unavailable. {claudeAvailability.reason} Run a dry-run or configure provider.
+          </p>
+        ) : null}
+        {providerBlocked ? (
+          <p className="muted">
+            Preferred provider is unavailable. Enable it and add credentials before running.
           </p>
         ) : null}
         {headlessSelected ? (
@@ -327,6 +343,34 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
               </select>
             </label>
             <label className="input-row">
+              <span>Preferred Provider</span>
+              <select
+                value={preferredProvider}
+                onChange={(event) => {
+                  setPreferredProvider(event.target.value);
+                  setPreferredRole('');
+                }}
+              >
+                <option value="">auto</option>
+                {providers.map((provider) => (
+                  <option key={provider.name} value={provider.name}>
+                    {provider.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="input-row">
+              <span>Preferred Role</span>
+              <select value={preferredRole} onChange={(event) => setPreferredRole(event.target.value)}>
+                <option value="">auto</option>
+                {(selectedProvider?.allowedRoles || []).map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="input-row">
               <span>Execution Mode</span>
               <select value={executionMode} onChange={(event) => setExecutionMode(event.target.value)}>
                 <option value="standard">standard</option>
@@ -355,6 +399,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
               Claude advisor selected. This will invoke the Anthropic API and requires a valid key.
             </p>
           ) : null}
+          <p className="muted">Provider and role are validated at runtime. Dry-run recommended.</p>
           {headlessSelected ? (
             <div className="warning-pill">Headless runs continue without UI supervision.</div>
           ) : null}

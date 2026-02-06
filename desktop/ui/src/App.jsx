@@ -49,6 +49,12 @@ const fallbackApi = {
     message: 'Desktop IPC unavailable.',
   }),
   checkClaudeAvailability: async () => ({ ok: false, reason: 'ipc_unavailable' }),
+  listAvailableProviders: async () => ({ registry: {}, providers: [] }),
+  addProvider: async () => ({ ok: false, reason: 'ipc_unavailable' }),
+  enableProvider: async () => ({ ok: false, reason: 'ipc_unavailable' }),
+  disableProvider: async () => ({ ok: false, reason: 'ipc_unavailable' }),
+  assignRoles: async () => ({ ok: false, reason: 'ipc_unavailable' }),
+  assignProjects: async () => ({ ok: false, reason: 'ipc_unavailable' }),
   getLiveRunStatus: async () => null,
   getAuditSummary: async () => ({
     total: 0,
@@ -69,11 +75,20 @@ export default function App() {
     const [lastRun, setLastRun] = useState(null);
     const [liveStatus, setLiveStatus] = useState(null);
     const [claudeStatus, setClaudeStatus] = useState(null);
+    const [providerData, setProviderData] = useState({ registry: {}, providers: [] });
 
     const api = useMemo(() => window.assistant1 || fallbackApi, []);
 
     const refreshStatus = () => {
       api.getStatus().then((data) => setStatus(data));
+    };
+
+    const refreshProviders = () => {
+      if (api.listAvailableProviders) {
+        api.listAvailableProviders().then((data) =>
+          setProviderData(data || { registry: {}, providers: [] })
+        );
+      }
     };
 
     useEffect(() => {
@@ -83,6 +98,7 @@ export default function App() {
       if (api.checkClaudeAvailability) {
         api.checkClaudeAvailability().then((data) => mounted && setClaudeStatus(data));
       }
+      refreshProviders();
       return () => {
         mounted = false;
       };
@@ -155,6 +171,9 @@ export default function App() {
               lastRun={lastRun}
               liveStatus={liveStatus}
               claudeStatus={claudeStatus}
+              providerData={providerData}
+              onProvidersChange={refreshProviders}
+              api={api}
               onNavigate={setActiveTab}
             />
           )}
@@ -164,6 +183,7 @@ export default function App() {
               api={api}
               liveStatus={liveStatus}
               claudeStatus={claudeStatus}
+              providerData={providerData}
               onRunComplete={(result) => {
                 setLastRun(result);
                 refreshStatus();

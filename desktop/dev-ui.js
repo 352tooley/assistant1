@@ -62,6 +62,50 @@ function registerDevIpc() {
   ipcMain.handle('check-claude-availability', async () => ({
     ok: false, reason: 'dev-ui mode',
   }));
+
+  ipcMain.handle('list-available-providers', async () => ({
+    registry: {
+      openai: {
+        label: 'OpenAI',
+        auth: ['apiKey'],
+        roles: ['auto', 'coder', 'planner'],
+        models: ['gpt-4.1', 'gpt-4.1-mini'],
+      },
+      anthropic: {
+        label: 'Anthropic (Claude)',
+        auth: ['apiKey'],
+        roles: ['claude', 'reviewer'],
+        models: ['claude-3-5-sonnet-20240620'],
+      },
+      custom: {
+        label: 'Custom / Local AI',
+        auth: ['apiKey', 'oauth'],
+        roles: ['custom'],
+        models: [],
+      },
+    },
+    providers: [],
+  }));
+
+  ipcMain.handle('add-provider', async () => ({
+    ok: false, reason: 'dev-ui mode',
+  }));
+
+  ipcMain.handle('enable-provider', async () => ({
+    ok: false, reason: 'dev-ui mode',
+  }));
+
+  ipcMain.handle('disable-provider', async () => ({
+    ok: false, reason: 'dev-ui mode',
+  }));
+
+  ipcMain.handle('assign-roles', async () => ({
+    ok: false, reason: 'dev-ui mode',
+  }));
+
+  ipcMain.handle('assign-projects', async () => ({
+    ok: false, reason: 'dev-ui mode',
+  }));
 }
 
 // App-level crash handler — registered once outside createWindow.
