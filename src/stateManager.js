@@ -56,8 +56,8 @@ function loadState(tasks, options = {}) {
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.taskQueue)) {
       return {
-        state: createDefaultState(tasks),
-        status: 'initialized',
+        state: null,
+        status: 'corrupt',
       };
     }
     parsed.failureCounts = parsed.failureCounts || {};
@@ -79,8 +79,8 @@ function loadState(tasks, options = {}) {
     return { state: parsed, status: 'loaded' };
   } catch {
     return {
-      state: createDefaultState(tasks),
-      status: 'initialized',
+      state: null,
+      status: 'corrupt',
     };
   }
 }

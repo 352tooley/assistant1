@@ -116,6 +116,13 @@
 - Decision: Log all CLI commands with intent and results.
 - Rationale: Preserves auditability for external actions.
 
+## 2026-02-06: Final Core Hardening
+
+- Decision: Treat Cycle 12 as the final core autonomy scope.
+- Rationale: Further changes are extensions and must not expand autonomy implicitly.
+- Decision: Prefer safety and operator trust over feature expansion.
+- Rationale: Packaging and guardrails are critical for production readiness.
+
 ## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
 
 - Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.

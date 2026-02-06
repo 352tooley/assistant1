@@ -568,6 +568,26 @@ function logCliEvent({ command, intent, result, details }) {
   appendLoopLog(lines);
 }
 
+function warnIfMissingFiles() {
+  const warnings = [];
+  if (!fs.existsSync(path.join(repoRoot, 'docs', 'AGENT_CONTRACT.md'))) {
+    warnings.push('Missing docs/AGENT_CONTRACT.md');
+  }
+  if (!fs.existsSync(path.join(repoRoot, 'docs', 'ACCEPTANCE.md'))) {
+    warnings.push('Missing docs/ACCEPTANCE.md');
+  }
+  if (warnings.length > 0) {
+    const timestamp = new Date().toISOString();
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Sanity warning',
+      ...warnings.map((warning) => `- Warning: ${warning}`),
+    ]);
+  }
+  return warnings;
+}
+
 function rerunOrchestrator(mode) {
   const env = { ...process.env, HEALING_RERUN: '1' };
   if (mode) {
@@ -668,6 +688,8 @@ function runHeadless(options, meta = {}) {
   let cycles = 0;
   let exitReason = null;
 
+  warnIfMissingFiles();
+
   if (meta.cliCommand) {
     logCliEvent({
       command: meta.cliCommand,
@@ -712,6 +734,10 @@ function runHeadless(options, meta = {}) {
     const cycleResult = runOnce(cycleOptions, { headlessMode: true, cliCommand: meta.cliCommand, operatorIntent: meta.operatorIntent });
     cycles += 1;
 
+    if (cycleResult && cycleResult.status === 'rejected') {
+      exitReason = cycleResult.reason || 'rejected';
+      continue;
+    }
     if (fs.existsSync(stopFlagPath)) {
       exitReason = 'operatorStop';
       continue;
@@ -753,6 +779,7 @@ function runHeadless(options, meta = {}) {
 function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
   const healingDisabled = process.env.HEALING_RERUN === '1';
   const mode = normalizeMode(options.mode);
+  warnIfMissingFiles();
   const acceptance = readFile(acceptancePath);
   const initialCriteria = extractSectionList(acceptance, '## Initial Acceptance Criteria');
 
@@ -766,6 +793,20 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
   const loadResult = loadState(queue, { reset: options.reset });
   const state = loadResult.state;
   let stateStatus = loadResult.status;
+
+  if (stateStatus === 'corrupt' || !state) {
+    const timestamp = new Date().toISOString();
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: State corrupt',
+      `- Headless mode: ${headlessMode ? 'true' : 'false'}`,
+      cliCommand ? `- cliCommand: ${cliCommand}` : '- cliCommand: none',
+      operatorIntent ? `- operatorIntent: ${operatorIntent}` : '- operatorIntent: none',
+      '- Exit reason: state_corrupt',
+    ]);
+    return { status: 'rejected', reason: 'state_corrupt' };
+  }
 
   if (!state.lastProcessedCommit) {
     state.lastProcessedCommit = currentCommit;
@@ -1018,6 +1059,7 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
 
 function run() {
   const options = parseArgs();
+  warnIfMissingFiles();
   if (options.headless) {
     return runHeadless(options);
   }

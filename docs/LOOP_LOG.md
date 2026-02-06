@@ -4391,3 +4391,82 @@
 - operatorIntent: reset
 - result: success
 - detail: stateFile=/Users/macbook/assistant1/state/runtime.json
+
+## 2026-02-06T11:16:15.526Z
+- Event: CLI command
+- cliCommand: status
+- operatorIntent: status
+- result: success
+- detail: pending=0
+- detail: completed=0
+
+## 2026-02-06T11:16:22.551Z
+- Event: Orchestrator cycle
+- Cycle: 192
+- Branch: `agent/codex/bootstrap`
+- Task id: `task-success`
+- Task type: text_transform
+- Task resume: no
+- State: initialized
+- Routing mode: standard
+- Headless mode: false
+- Poll interval ms: 5000
+- cliCommand: run-once
+- operatorIntent: run-once
+- Acceptance criteria parsed: 6
+- Provider chosen: codex (attempt 1)
+- Routing mode: standard
+- Routing reason: default_codex
+- Agent chosen: Codex (attempt 1)
+- Codex result: success
+- Codex output summary: CYCLE SEVEN
+- Escalation: no
+- Escalation reason: none
+- Healing attempts count: 0
+- Usage snapshot: codexCalls=1, claudeCalls=0
+- Regression detected: no
+- State save: ok
+
+## 2026-02-06T11:16:22.556Z
+- Event: CLI command
+- cliCommand: run-once
+- operatorIntent: run-once
+- result: maxTasks
+
+## 2026-02-06T11:16:27.053Z
+- Event: CLI command
+- cliCommand: headless start
+- operatorIntent: headless start
+- result: warning
+- detail: Warning: headless start without explicit limits; defaults will be used.
+
+## 2026-02-06T11:16:27.055Z
+- Event: CLI command
+- cliCommand: headless start
+- operatorIntent: headless start
+- result: started
+- detail: pollIntervalMs=5000
+- detail: maxCycles=1
+- detail: maxRuntimeMs=60000
+
+## 2026-02-06T11:16:27.056Z
+- Event: Headless exit
+- Reason: operatorStop
+- Headless mode: true
+- Poll interval ms: 5000
+- cliCommand: headless start
+- operatorIntent: headless start
+
+## 2026-02-06T11:16:31.015Z
+- Event: CLI command
+- cliCommand: bogus
+- operatorIntent: unknown
+- result: rejected
+- detail: unknown_command
+
+## 2026-02-06T11:16:39.880Z
+- Event: CLI command
+- cliCommand: status
+- operatorIntent: status
+- result: rejected
+- detail: state_corrupt
