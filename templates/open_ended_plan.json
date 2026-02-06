@@ -1,0 +1,12 @@
+{
+  "id": "open_ended_plan",
+  "label": "Open-Ended Plan Builder",
+  "description": "Generate a step-by-step plan from idea and answers.",
+  "inputs": {
+    "idea": { "type": "string", "required": true },
+    "answers": { "type": "string", "required": true }
+  },
+  "agentRole": "Planner",
+  "allowsClaude": true,
+  "maxCycles": 1
+}

@@ -90,20 +90,25 @@ export default function Audit({ api }) {
           </div>
         </Card>
 
-        <Card title="Compliance" accent={theme.accent.green}>
-          <div className="stat-row">
-            <span>Template Matched</span>
-            <strong>✔</strong>
-          </div>
-          <div className="stat-row">
-            <span>Limits Enforced</span>
-            <strong>✔</strong>
-          </div>
-          <div className="stat-row">
-            <span>Policy Respected</span>
-            <strong>✔</strong>
-          </div>
-          <p className="muted">Audit entries store compliance decisions per run.</p>
+        <Card title="Compliance" accent={activeRun && activeRun.compliance ? theme.accent.green : theme.accent.blue}>
+          {activeRun && activeRun.compliance ? (
+            <>
+              <div className="stat-row">
+                <span>Template Matched</span>
+                <strong>{activeRun.compliance.templateMatched ? '✔' : '✖'}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Limits Enforced</span>
+                <strong>{activeRun.compliance.limitsEnforced ? '✔' : '✖'}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Policy Respected</span>
+                <strong>{activeRun.compliance.policyRespected ? '✔' : '✖'}</strong>
+              </div>
+            </>
+          ) : (
+            <p className="muted">Select a run to view compliance details.</p>
+          )}
         </Card>
       </div>
 
@@ -116,7 +121,10 @@ export default function Audit({ api }) {
                 key={run.runId}
                 type="button"
                 className="audit-row"
-                onClick={() => setActiveRun(run)}
+                onClick={async () => {
+                  const detail = await api.getAuditRun(run.runId);
+                  setActiveRun(detail || run);
+                }}
               >
                 <span className="audit-dot" style={{ background: statusAccent(run.status) }} />
                 <div className="audit-row-body">
@@ -182,21 +190,23 @@ export default function Audit({ api }) {
 
               <div className="divider" />
               <h3 className="section-title">Phases</h3>
-              <ul className="phase-list">
-                {activeRun.phases.map((phase) => (
-                  <li key={`${phase.phase}-${phase.at}`}>
-                    <strong>{phase.phase}</strong>
-                    <span className="muted">{phase.at}</span>
-                    <p className="muted">{phase.message}</p>
-                  </li>
-                ))}
-              </ul>
+              {Array.isArray(activeRun.phases) && activeRun.phases.length > 0 ? (
+                <ul className="phase-list">
+                  {activeRun.phases.map((phase) => (
+                    <li key={`${phase.phase}-${phase.at}`}>
+                      <strong>{phase.phase}</strong>
+                      <span className="muted">{phase.at}</span>
+                      <p className="muted">{phase.message}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">No phase data available.</p>
+              )}
 
               <div className="divider" />
               <h3 className="section-title">Decisions</h3>
-              {activeRun.decisions.length === 0 ? (
-                <p className="muted">No special decisions recorded.</p>
-              ) : (
+              {Array.isArray(activeRun.decisions) && activeRun.decisions.length > 0 ? (
                 <ul className="phase-list">
                   {activeRun.decisions.map((decision, index) => (
                     <li key={`${decision.type}-${index}`}>
@@ -206,15 +216,21 @@ export default function Audit({ api }) {
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <p className="muted">No special decisions recorded.</p>
               )}
 
               <div className="divider" />
               <h3 className="section-title">Compliance</h3>
-              <ul className="checklist">
-                <li>Template matched: {activeRun.compliance.templateMatched ? '✔' : '✖'}</li>
-                <li>Limits enforced: {activeRun.compliance.limitsEnforced ? '✔' : '✖'}</li>
-                <li>Policy respected: {activeRun.compliance.policyRespected ? '✔' : '✖'}</li>
-              </ul>
+              {activeRun.compliance ? (
+                <ul className="checklist">
+                  <li>Template matched: {activeRun.compliance.templateMatched ? '✔' : '✖'}</li>
+                  <li>Limits enforced: {activeRun.compliance.limitsEnforced ? '✔' : '✖'}</li>
+                  <li>Policy respected: {activeRun.compliance.policyRespected ? '✔' : '✖'}</li>
+                </ul>
+              ) : (
+                <p className="muted">No compliance data available.</p>
+              )}
             </div>
           ) : (
             <p className="muted">Select a run to view details.</p>

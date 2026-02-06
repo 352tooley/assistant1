@@ -49,60 +49,77 @@ export default function Dashboard({ status, lastRun, liveStatus, claudeStatus, p
   const [newAuthMethod, setNewAuthMethod] = React.useState('apiKey');
   const apiKeyRef = React.useRef(null);
   const projectRefs = React.useRef({});
+  const [providerFeedback, setProviderFeedback] = React.useState('');
 
   const handleAddProvider = async () => {
-    const apiKey = apiKeyRef.current ? apiKeyRef.current.value : '';
-    await api.addProvider({
-      type: newProviderType,
-      name: newProviderName.trim(),
-      authMethod: newAuthMethod,
-      apiKey: newAuthMethod === 'apiKey' ? apiKey : undefined,
-    });
-    if (apiKeyRef.current) {
-      apiKeyRef.current.value = '';
-    }
-    setNewProviderName('');
-    if (onProvidersChange) {
-      onProvidersChange();
+    setProviderFeedback('');
+    try {
+      const apiKey = apiKeyRef.current ? apiKeyRef.current.value : '';
+      const result = await api.addProvider({
+        type: newProviderType,
+        name: newProviderName.trim(),
+        authMethod: newAuthMethod,
+        apiKey: newAuthMethod === 'apiKey' ? apiKey : undefined,
+      });
+      if (result && result.ok === false) {
+        setProviderFeedback('Failed: ' + (result.reason || 'unknown'));
+      } else {
+        setProviderFeedback('Provider added.');
+        if (apiKeyRef.current) apiKeyRef.current.value = '';
+        setNewProviderName('');
+      }
+      if (onProvidersChange) onProvidersChange();
+    } catch (err) {
+      setProviderFeedback('Error: ' + (err.message || String(err)));
     }
   };
 
   const toggleProvider = async (provider) => {
-    if (!provider) {
-      return;
-    }
-    if (provider.enabled) {
-      await api.disableProvider(provider.name);
-    } else {
-      await api.enableProvider(provider.name);
-    }
-    if (onProvidersChange) {
-      onProvidersChange();
+    if (!provider) return;
+    setProviderFeedback('');
+    try {
+      const result = provider.enabled
+        ? await api.disableProvider(provider.name)
+        : await api.enableProvider(provider.name);
+      if (result && result.ok === false) {
+        setProviderFeedback('Toggle failed: ' + (result.reason || 'unknown'));
+      }
+      if (onProvidersChange) onProvidersChange();
+    } catch (err) {
+      setProviderFeedback('Error: ' + (err.message || String(err)));
     }
   };
 
   const updateRoles = async (provider, role, checked) => {
-    if (!provider) {
-      return;
-    }
-    const nextRoles = checked
-      ? Array.from(new Set([...(provider.roles || []), role]))
-      : (provider.roles || []).filter((item) => item !== role);
-    await api.assignRoles({ name: provider.name, roles: nextRoles });
-    if (onProvidersChange) {
-      onProvidersChange();
+    if (!provider) return;
+    setProviderFeedback('');
+    try {
+      const nextRoles = checked
+        ? Array.from(new Set([...(provider.roles || []), role]))
+        : (provider.roles || []).filter((item) => item !== role);
+      const result = await api.assignRoles({ name: provider.name, roles: nextRoles });
+      if (result && result.ok === false) {
+        setProviderFeedback('Role update failed: ' + (result.reason || 'unknown'));
+      }
+      if (onProvidersChange) onProvidersChange();
+    } catch (err) {
+      setProviderFeedback('Error: ' + (err.message || String(err)));
     }
   };
 
   const updateProjects = async (provider) => {
-    if (!provider) {
-      return;
-    }
-    const input = projectRefs.current[provider.name];
-    const value = input ? input.value : '';
-    await api.assignProjects({ name: provider.name, projects: value });
-    if (onProvidersChange) {
-      onProvidersChange();
+    if (!provider) return;
+    setProviderFeedback('');
+    try {
+      const input = projectRefs.current[provider.name];
+      const value = input ? input.value : '';
+      const result = await api.assignProjects({ name: provider.name, projects: value });
+      if (result && result.ok === false) {
+        setProviderFeedback('Project update failed: ' + (result.reason || 'unknown'));
+      }
+      if (onProvidersChange) onProvidersChange();
+    } catch (err) {
+      setProviderFeedback('Error: ' + (err.message || String(err)));
     }
   };
 
@@ -218,6 +235,7 @@ export default function Dashboard({ status, lastRun, liveStatus, claudeStatus, p
             <button className="primary" type="button" onClick={handleAddProvider} disabled={!newProviderName.trim()}>
               Add Provider
             </button>
+            {providerFeedback && <p className="muted">{providerFeedback}</p>}
           </div>
           <div className="divider" />
           {providers.length === 0 ? (

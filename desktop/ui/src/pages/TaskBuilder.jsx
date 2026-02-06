@@ -69,18 +69,22 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
     setRunResult(null);
     setDryRunResult(null);
     setFrozenStatus(null);
-    const result = await api.buildTaskPreview(input);
-    setPreview(result);
-    if (result && result.extractedInputs) {
-      setFormInputs(result.extractedInputs);
-    }
-    if (result?.template?.maxCycles) {
-      setMaxCycles(Math.min(1, result.template.maxCycles));
-    }
-    if (result?.template?.allowsClaude) {
-      setAllowsClaude(result.template.allowsClaude);
-    } else {
-      setAllowsClaude(false);
+    try {
+      const result = await api.buildTaskPreview(input);
+      setPreview(result);
+      if (result && result.extractedInputs) {
+        setFormInputs(result.extractedInputs);
+      }
+      if (result?.template?.maxCycles) {
+        setMaxCycles(Math.min(1, result.template.maxCycles));
+      }
+      if (result?.template?.allowsClaude) {
+        setAllowsClaude(result.template.allowsClaude);
+      } else {
+        setAllowsClaude(false);
+      }
+    } catch (err) {
+      setMessage('Preview failed: ' + (err.message || String(err)));
     }
   };
 
@@ -89,15 +93,21 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
     setDryRunSelected(true);
     setDryRunRunning(true);
     setDryRunResult(null);
-    const result = await api.runDryRun({
-      requestedAdvisor,
-      mode,
-      headless: executionMode === 'headless',
-      preferredProvider,
-      preferredRole,
-    });
-    setDryRunRunning(false);
-    setDryRunResult(result);
+    try {
+      const result = await api.runDryRun({
+        templateId: preview?.template?.id || '',
+        requestedAdvisor,
+        mode,
+        headless: executionMode === 'headless',
+        preferredProvider,
+        preferredRole,
+      });
+      setDryRunResult(result);
+    } catch (err) {
+      setMessage('Dry-run failed: ' + (err.message || String(err)));
+    } finally {
+      setDryRunRunning(false);
+    }
   };
 
   const onApprove = async () => {
@@ -112,30 +122,35 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
     setMessage('');
     setRunning(true);
     setFrozenStatus(null);
-    const request = {
-      templateId: preview.template.id,
-      inputs: formInputs,
-      requestedAgentRole: preview.template.agentRole,
-      requestedAdvisor,
-      mode,
-      preferredProvider,
-      preferredRole,
-      limits: {
-        maxCycles: Math.min(Number(maxCycles) || 1, preview.template.maxCycles),
-        maxRuntimeMs: 120000,
-      },
-      allowsClaude: preview.template.allowsClaude ? Boolean(allowsClaude) : false,
-    };
-    const result = await api.executeApprovedTask(request);
-    setRunResult(result);
-    setRunning(false);
-    if (onRunComplete) {
-      onRunComplete({
-        status: result.status,
-        message: result.message,
-        outputSummary: result.outputSummary,
-        timestamp: new Date().toISOString(),
-      });
+    try {
+      const request = {
+        templateId: preview.template.id,
+        inputs: formInputs,
+        requestedAgentRole: preview.template.agentRole,
+        requestedAdvisor,
+        mode,
+        preferredProvider,
+        preferredRole,
+        limits: {
+          maxCycles: Math.min(Number(maxCycles) || 1, preview.template.maxCycles),
+          maxRuntimeMs: 120000,
+        },
+        allowsClaude: preview.template.allowsClaude ? Boolean(allowsClaude) : false,
+      };
+      const result = await api.executeApprovedTask(request);
+      setRunResult(result);
+      if (onRunComplete) {
+        onRunComplete({
+          status: result.status,
+          message: result.message,
+          outputSummary: result.outputSummary,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      setMessage('Execution failed: ' + (err.message || String(err)));
+    } finally {
+      setRunning(false);
     }
   };
 
@@ -171,7 +186,9 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
   const providers = Array.isArray(providerData?.providers) ? providerData.providers : [];
   const selectedProvider = providers.find((provider) => provider.name === preferredProvider);
   const providerReady = !preferredProvider || (selectedProvider && selectedProvider.enabled && (selectedProvider.authStatus.apiKey || selectedProvider.authStatus.oauth));
-  const providerBlocked = Boolean(preferredProvider) && !providerReady;
+  const openEndedTemplate =
+    preview?.template?.id === 'open_ended_idea' || preview?.template?.id === 'open_ended_plan';
+  const providerBlocked = (Boolean(preferredProvider) && !providerReady) || (openEndedTemplate && !preferredProvider);
   const approveDisabled =
     missingInputs.length > 0 ||
     !preview?.template ||
@@ -246,7 +263,9 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
         ) : null}
         {providerBlocked ? (
           <p className="muted">
-            Preferred provider is unavailable. Enable it and add credentials before running.
+            {openEndedTemplate && !preferredProvider
+              ? 'Open-ended templates require a preferred provider.'
+              : 'Preferred provider is unavailable. Enable it and add credentials before running.'}
           </p>
         ) : null}
         {headlessSelected ? (
@@ -283,7 +302,67 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
           <div className="preview-inputs">
             {preview?.template?.inputs &&
               Object.keys(preview.template.inputs).map((key) => {
+                const def = preview.template.inputs[key];
+                const fieldType = def.type || 'string';
                 const isMissing = missingInputs.includes(key);
+
+                if (fieldType === 'enum') {
+                  return (
+                    <label key={key} className={`input-row ${isMissing ? 'missing' : ''}`}>
+                      <span>{key}</span>
+                      <select
+                        value={formInputs[key] || ''}
+                        onChange={(event) => onInputChange(key, event.target.value)}
+                      >
+                        <option value="">-- select --</option>
+                        {(def.options || []).map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </label>
+                  );
+                }
+
+                if (fieldType === 'multi-select') {
+                  const selected = Array.isArray(formInputs[key]) ? formInputs[key] : [];
+                  return (
+                    <div key={key} className={`input-row ${isMissing ? 'missing' : ''}`}>
+                      <span>{key}</span>
+                      <div>
+                        {(def.options || []).map((opt) => (
+                          <label key={opt} className="checkbox-row">
+                            <input
+                              type="checkbox"
+                              checked={selected.includes(opt)}
+                              onChange={(event) => {
+                                const next = event.target.checked
+                                  ? [...selected, opt]
+                                  : selected.filter((v) => v !== opt);
+                                onInputChange(key, next);
+                              }}
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (fieldType === 'url') {
+                  return (
+                    <label key={key} className={`input-row ${isMissing ? 'missing' : ''}`}>
+                      <span>{key}</span>
+                      <input
+                        type="url"
+                        value={formInputs[key] || ''}
+                        onChange={(event) => onInputChange(key, event.target.value)}
+                        placeholder="https://..."
+                      />
+                    </label>
+                  );
+                }
+
                 return (
                   <label key={key} className={`input-row ${isMissing ? 'missing' : ''}`}>
                     <span>{key}</span>
@@ -291,7 +370,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
                       type="text"
                       value={formInputs[key] || ''}
                       onChange={(event) => onInputChange(key, event.target.value)}
-                      placeholder={preview.template.inputs[key].type}
+                      placeholder={fieldType}
                     />
                   </label>
                 );
@@ -486,6 +565,22 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
               <span>Elapsed</span>
               <strong>{elapsedLabel}</strong>
             </div>
+            {(liveDisplay.status === 'running' || liveDisplay.status === 'starting' || liveDisplay.status === 'waiting') && api.requestStop ? (
+              <button
+                className="ghost-button"
+                type="button"
+                onClick={async () => {
+                  try {
+                    const result = await api.requestStop();
+                    setMessage(result.ok ? 'Stop requested.' : 'Stop failed: ' + (result.reason || 'unknown'));
+                  } catch (err) {
+                    setMessage('Stop failed: ' + (err.message || String(err)));
+                  }
+                }}
+              >
+                Request Stop
+              </button>
+            ) : null}
           </Card>
         ) : null}
       </div>

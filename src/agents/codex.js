@@ -33,6 +33,37 @@ function runCodex(task) {
 
   let output;
 
+  if (task.type === 'open_ended_idea' || task.type === 'open_ended_plan') {
+    const { spawnSync } = require('child_process');
+    const payload = {
+      task: {
+        type: task.type,
+        input: task.input || {},
+      },
+      providerName: task.providerName || '',
+      preferredModel: task.preferredModel || '',
+    };
+    const result = spawnSync(process.execPath, [require.resolve('./openaiAdapter.js')], {
+      env: { ...process.env, OPENAI_ADAPTER_PAYLOAD: JSON.stringify(payload) },
+      encoding: 'utf8',
+    });
+    if (result.error || result.status !== 0) {
+      return {
+        status: 'failure',
+        error: 'OpenAI adapter failed to run.',
+      };
+    }
+    try {
+      const parsed = JSON.parse((result.stdout || '').trim() || '{}');
+      if (parsed.status !== 'success') {
+        return { status: 'failure', error: parsed.error || 'OpenAI adapter error.' };
+      }
+      return { status: 'success', output: parsed.output };
+    } catch {
+      return { status: 'failure', error: 'OpenAI adapter returned invalid output.' };
+    }
+  }
+
   if (task.type === 'text_transform') {
     const input = task.input;
     if (!isObject(input) || typeof input.text !== 'string' || typeof input.mode !== 'string') {

@@ -181,7 +181,25 @@ function formatExpectedOutput(value) {
   return JSON.stringify(value);
 }
 
-function buildInternalTaskFromTemplate(template, inputs) {
+function buildInternalTaskFromTemplate(template, inputs, request) {
+  if (template.id === 'open_ended_idea') {
+    return {
+      id: `approved-${template.id}-${Date.now()}`,
+      type: 'open_ended_idea',
+      input: { idea: inputs.idea },
+      providerName: request.preferredProvider || '',
+      preferredModel: request.preferredModel || '',
+    };
+  }
+  if (template.id === 'open_ended_plan') {
+    return {
+      id: `approved-${template.id}-${Date.now()}`,
+      type: 'open_ended_plan',
+      input: { idea: inputs.idea, answers: inputs.answers },
+      providerName: request.preferredProvider || '',
+      preferredModel: request.preferredModel || '',
+    };
+  }
   const description = `${template.id}: ${template.label}`;
   const payload = JSON.stringify(inputs || {});
   const text = `${description} ${payload}`;
@@ -190,6 +208,8 @@ function buildInternalTaskFromTemplate(template, inputs) {
     type: 'text_transform',
     input: { text, mode: 'upper' },
     expectedOutput: text.toUpperCase(),
+    providerName: request.preferredProvider || '',
+    preferredModel: request.preferredModel || '',
   };
 }
 
@@ -987,6 +1007,8 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
       preferredRole: options.preferredRole,
       preferredModel: options.preferredModel,
     });
+    const requiresProvider =
+      options.templateId === 'open_ended_idea' || options.templateId === 'open_ended_plan';
     const timestamp = new Date().toISOString();
     const runId = `dry-run-${Date.now()}`;
     appendLoopLog([
@@ -999,6 +1021,48 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
       cliCommand ? `- cliCommand: ${cliCommand}` : '- cliCommand: none',
       operatorIntent ? `- operatorIntent: ${operatorIntent}` : '- operatorIntent: none',
     ]);
+    if (requiresProvider && !options.preferredProvider) {
+      try {
+        appendAuditEntry({
+          runId,
+          timestamp,
+          templateId: options.templateId || 'dry-run',
+          agentRole: 'operator',
+          mode,
+          status: 'rejected',
+          phases: [{ phase: 'Validating', message: 'Preferred provider required.', at: timestamp }],
+          decisions: [
+            {
+              type: 'provider_blocked',
+              reason: 'Preferred provider required for open-ended templates.',
+              policy: 'provider_manager',
+            },
+          ],
+          limits: {
+            maxCycles: options.maxCycles || 0,
+            cyclesUsed: 0,
+            allowsClaude: false,
+          },
+          compliance: {
+            templateMatched: false,
+            limitsEnforced: true,
+            policyRespected: true,
+          },
+          advisorRequested: options.requestedAdvisor || 'auto',
+          headlessIntent: Boolean(headlessMode),
+          dryRun: true,
+          providerSelected: options.preferredProvider || '',
+          providerRole: options.preferredRole || '',
+        });
+      } catch {
+        // Ignore audit failures in dry-run.
+      }
+      return {
+        status: 'rejected',
+        message: 'Preferred provider required for open-ended templates.',
+        claudeAvailable: availability.ok,
+      };
+    }
     if (!providerCheck.ok) {
       try {
         appendAuditEntry({
@@ -1721,7 +1785,7 @@ function runApprovedTask(taskRequest, meta = {}) {
     });
   }
 
-  const internalTask = buildInternalTaskFromTemplate(template, taskRequest.inputs);
+  const internalTask = buildInternalTaskFromTemplate(template, taskRequest.inputs, taskRequest);
   const limits = taskRequest.limits || {};
   const maxCycles = Number.isFinite(limits.maxCycles) ? limits.maxCycles : template.maxCycles;
   const maxRuntimeMs = Number.isFinite(limits.maxRuntimeMs) ? limits.maxRuntimeMs : 120000;

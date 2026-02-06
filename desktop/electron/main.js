@@ -193,6 +193,7 @@ function registerIpc() {
         requestedAdvisor: config && config.requestedAdvisor ? config.requestedAdvisor : 'auto',
         preferredProvider: config && config.preferredProvider ? config.preferredProvider : '',
         preferredRole: config && config.preferredRole ? config.preferredRole : '',
+        templateId: config && config.templateId ? config.templateId : '',
         dryRun: true,
         pollIntervalMs: 5000,
         maxCycles: 1,
@@ -267,6 +268,18 @@ function registerIpc() {
       return assignProjects(payload && payload.name, payload && payload.projects);
     } catch (error) {
       return { ok: false, reason: 'error' };
+    }
+  });
+
+  ipcMain.handle('request-stop', async () => {
+    try {
+      const fs = require('fs');
+      const stopPath = path.join(repoRoot, 'state', 'STOP');
+      fs.mkdirSync(path.join(repoRoot, 'state'), { recursive: true });
+      fs.writeFileSync(stopPath, 'stop-requested-from-desktop');
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, reason: String(error) };
     }
   });
 }

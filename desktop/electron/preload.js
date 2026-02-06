@@ -40,6 +40,7 @@ const api = {
   getAuditSummary: () => safeInvoke('get-audit-summary', undefined, null),
   getAuditRuns: (filters) => safeInvoke('get-audit-runs', filters, []),
   getAuditRun: (runId) => safeInvoke('get-audit-run', runId, null),
+  requestStop: () => safeInvoke('request-stop', undefined, { ok: false, reason: 'ipc_unavailable' }),
 };
 
 if (contextBridge && typeof contextBridge.exposeInMainWorld === 'function') {

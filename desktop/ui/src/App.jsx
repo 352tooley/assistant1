@@ -65,6 +65,8 @@ const fallbackApi = {
     healings: 0,
   }),
   getAuditRuns: async () => [],
+  getAuditRun: async () => null,
+  requestStop: async () => ({ ok: false, reason: 'ipc_unavailable' }),
 };
 
 export default function App() {
@@ -190,7 +192,7 @@ export default function App() {
               }}
             />
           )}
-          {activeTab === 'activity' && <Activity lastRun={lastRun} />}
+          {activeTab === 'activity' && <Activity lastRun={lastRun} api={api} />}
           {activeTab === 'audit' && <Audit api={api} />}
         </main>
       </div>

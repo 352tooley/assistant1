@@ -1,0 +1,11 @@
+{
+  "id": "open_ended_idea",
+  "label": "Open-Ended Idea Intake",
+  "description": "Collect a general idea and generate clarifying questions.",
+  "inputs": {
+    "idea": { "type": "string", "required": true }
+  },
+  "agentRole": "Planner",
+  "allowsClaude": true,
+  "maxCycles": 1
+}

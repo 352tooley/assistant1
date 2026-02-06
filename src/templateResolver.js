@@ -41,6 +41,21 @@ function extractInputs(template, text) {
   const lower = normalizeText(text);
 
   Object.keys(template.inputs || {}).forEach((key) => {
+    if (key === 'idea') {
+      if (text && text.trim().length > 0) {
+        extracted.idea = text.trim();
+      }
+    }
+
+    if (key === 'answers') {
+      if (lower.includes('answers:')) {
+        const match = text.split(/answers:/i)[1];
+        if (match && match.trim().length > 0) {
+          extracted.answers = match.trim();
+        }
+      }
+    }
+
     if (key === 'url') {
       const match = text.match(/https?:\/\/\S+/);
       if (match) {

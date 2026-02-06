@@ -1,7 +1,32 @@
 const { loadProviderConfig } = require('../providerConfig');
+const { loadProviderStore } = require('../providerManager');
 const { sendAnthropicMessage } = require('../providers/anthropicClient');
 const { redactSecrets } = require('../redaction');
 const { claude: claudeEngagement } = require('../agentEngagement');
+
+function loadAnthropicFromStore() {
+  const store = loadProviderStore();
+  const providers = store.providers || {};
+  const entry = Object.entries(providers).find(
+    ([, provider]) =>
+      provider &&
+      provider.type === 'anthropic' &&
+      provider.enabled &&
+      provider.auth &&
+      provider.auth.apiKey
+  );
+  if (!entry) {
+    return null;
+  }
+  const [name, provider] = entry;
+  return {
+    name,
+    apiKey: provider.auth.apiKey,
+    model: provider.model || 'claude-3-5-sonnet-20241022',
+    maxTokens: provider.maxTokens || 800,
+    temperature: provider.temperature ?? 0.2,
+  };
+}
 
 function findJsonPayload(text) {
   if (!text) {
@@ -91,8 +116,9 @@ function validateSchema(output) {
 
 async function runClaudeAdapter({ trigger, failureContext, repoContext, constraints }) {
   const config = loadProviderConfig();
-  const anthropic = config.providers && config.providers.anthropic ? config.providers.anthropic : null;
-  const engagementEnabled = claudeEngagement.enabled || (anthropic && anthropic.enabled === true);
+  const storeAnthropic = loadAnthropicFromStore();
+  const anthropic = storeAnthropic || (config.providers && config.providers.anthropic ? config.providers.anthropic : null);
+  const engagementEnabled = claudeEngagement.enabled || (anthropic && anthropic.enabled === true) || Boolean(storeAnthropic);
 
   if (!engagementEnabled) {
     return { status: 'failure', diagnosis: 'Claude engagement disabled.', proposedFixPacket: null };
@@ -206,8 +232,9 @@ Context:\n${JSON.stringify(payload)}`;
 
 function isClaudeCallable(trigger) {
   const config = loadProviderConfig();
-  const anthropic = config.providers && config.providers.anthropic ? config.providers.anthropic : null;
-  const engagementEnabled = claudeEngagement.enabled || (anthropic && anthropic.enabled === true);
+  const storeAnthropic = loadAnthropicFromStore();
+  const anthropic = storeAnthropic || (config.providers && config.providers.anthropic ? config.providers.anthropic : null);
+  const engagementEnabled = claudeEngagement.enabled || (anthropic && anthropic.enabled === true) || Boolean(storeAnthropic);
   if (!engagementEnabled) {
     return { ok: false, reason: 'engagement_disabled' };
   }

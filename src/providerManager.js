@@ -204,6 +204,7 @@ function validateProviderForRun({ preferredProvider, preferredRole, preferredMod
 }
 
 module.exports = {
+  loadProviderStore,
   getAvailableProviders,
   addProvider,
   enableProvider,

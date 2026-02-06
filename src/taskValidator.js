@@ -87,6 +87,10 @@ function validateTaskRequest(taskRequest) {
     return { ok: false, reason: 'requestedAgentRole mismatch.' };
   }
 
+  if ((template.id === 'open_ended_idea' || template.id === 'open_ended_plan') && !taskRequest.preferredProvider) {
+    return { ok: false, reason: 'Preferred provider required for open-ended templates.' };
+  }
+
   const inputs = taskRequest.inputs || {};
   const missing = [];
   const typeErrors = [];

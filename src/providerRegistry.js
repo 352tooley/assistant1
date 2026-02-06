@@ -3,7 +3,7 @@ module.exports = {
     label: 'OpenAI',
     auth: ['apiKey'],
     roles: ['auto', 'coder', 'planner'],
-    models: ['gpt-4.1', 'gpt-4.1-mini'],
+    models: ['gpt-5.1-codex', 'gpt-5.1-codex-mini'],
   },
   anthropic: {
     label: 'Anthropic (Claude)',
