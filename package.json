@@ -1,0 +1,10 @@
+{
+  "name": "assistant1",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "desktop:install": "cd desktop && npm install",
+    "desktop:dev": "cd desktop && npm run dev",
+    "desktop:smoke": "cd desktop && npm run smoke"
+  }
+}

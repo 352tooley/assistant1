@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "concurrently \"vite --config ui/vite.config.js\" \"UI_DEV_SERVER_URL=http://localhost:5173 electron electron/main.js\"",
     "build": "vite build --config ui/vite.config.js",
-    "start": "electron electron/main.js"
+    "start": "electron electron/main.js",
+    "electron": "electron electron/main.js",
+    "smoke": "node scripts/smoke.js"
   },
   "dependencies": {
     "electron": "^31.2.0",
