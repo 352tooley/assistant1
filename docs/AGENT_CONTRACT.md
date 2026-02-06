@@ -38,6 +38,7 @@
 ## User-Requested Claude
 - User-requested Claude invocation is authoritative.
 - The system must not bypass or simulate Claude when explicitly requested.
+- CLI-requested Claude invocation is authoritative and must not fall back.
 
 ## Stop Conditions
 - All acceptance criteria are met and validated.

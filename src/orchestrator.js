@@ -949,6 +949,62 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
 
   const currentCommit = getCurrentCommit();
 
+  if (options.requestedAdvisor === 'claude') {
+    const availability = isClaudeCallable('user_requested_cli');
+    const timestamp = new Date().toISOString();
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Claude invocation',
+      '- reason: user_requested_cli',
+      '- adapter: anthropic_api',
+      `- result: ${availability.ok ? 'attempted' : 'adapter_unavailable'}`,
+    ]);
+    if (!availability.ok) {
+      appendLoopLog([
+        '',
+        `## ${timestamp}`,
+        '- Event: Claude invocation failed',
+        '- reason: adapter_unavailable',
+      ]);
+      throw new Error('Claude assistance was explicitly requested via CLI, but no callable Claude adapter is available.');
+    }
+
+    const claudeContext = packageClaudeContext({
+      trigger: 'user_requested_cli',
+      failureContext: {
+        error: 'user_requested_cli',
+        classification: 'complex',
+        failureCount: 1,
+        codexOutputs: [],
+      },
+      recentCommits: {
+        lastSuccessfulCommit: null,
+        currentCommit,
+      },
+      constraints: {
+        allowedPaths: ['src/', 'docs/'],
+        maxFiles: 2,
+      },
+    });
+
+    const claudeResult = runClaude(
+      { id: 'user-request-cli', type: 'text_transform', input: { text: 'user', mode: 'upper' } },
+      { ...claudeContext, forceClaudeAdapter: true }
+    );
+
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Claude invocation',
+      '- reason: user_requested_cli',
+      '- adapter: anthropic_api',
+      `- result: ${claudeResult.status}`,
+    ]);
+
+    return { status: claudeResult.status === 'resolved' ? 'success' : 'failure' };
+  }
+
   if (options.reset) {
     resetState();
   }

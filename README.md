@@ -18,6 +18,11 @@ assistant1 is an autonomous multi-agent engineering assistant that coordinates i
 node src/cli.js run-once
 ```
 
+### One-off (Force Claude)
+```bash
+node src/cli.js run-once --advisor=claude
+```
+
 ### Headless (Always-On)
 ```bash
 node src/cli.js headless start --max-cycles=10 --max-runtime-ms=60000 --poll-interval-ms=5000

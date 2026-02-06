@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-const { runApprovedTask } = require('../src/orchestrator');
+const { runApprovedTask, runOnce } = require('../src/orchestrator');
 
 const providerPath = path.join(process.cwd(), 'providers.local.json');
 
@@ -81,5 +81,22 @@ test('auto mode still executes codex path', () => {
     allowsClaude: false,
   });
   assert.equal(result.status, 'success');
+  cleanupProviderConfig();
+});
+
+test('cli advisor=claude requires adapter', () => {
+  writeProviderConfig(false);
+  assert.throws(() => {
+    runOnce(
+      {
+        reset: false,
+        maxTasks: 1,
+        mode: 'standard',
+        pollIntervalMs: 5000,
+        requestedAdvisor: 'claude',
+      },
+      { headlessMode: false, cliCommand: 'run-once', operatorIntent: 'run-once' }
+    );
+  });
   cleanupProviderConfig();
 });

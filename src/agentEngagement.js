@@ -3,6 +3,7 @@ module.exports = {
     enabled: false,
     escalationTriggers: [
       'user_requested',
+      'user_requested_cli',
       'renderer_black_screen',
       'electron_lifecycle_exit',
       'cross_commit_regression',

@@ -4638,3 +4638,91 @@
 - maxRuntimeMs: 120000
 - usage: codexCalls=1, claudeCalls=0
 - outputSummary: WEB_BUILD_BASIC: WEB BUILD BASIC {"SITENAME":"ACME","THEME":"MINIMAL"}
+
+## 2026-02-06T15:40:57.993Z
+- Event: Claude invocation
+- reason: user_requested
+- adapter: anthropic_api
+- result: attempted
+
+## 2026-02-06T15:40:57.993Z
+- Event: Claude invocation
+- reason: user_requested
+- adapter: anthropic_api
+- result: unresolved
+
+## 2026-02-06T15:40:58.142Z
+- Event: Claude invocation
+- reason: user_requested
+- adapter: anthropic_api
+- result: adapter_unavailable
+
+## 2026-02-06T15:40:58.143Z
+- Event: Approved task
+- cliCommand: desktop:approve
+- operatorIntent: approveAndRun
+- templateId: web_build_basic
+- status: success
+- mode: standard
+- inputs: {"siteName":"Acme"}
+- allowsClaude: false
+- maxCycles: 1
+- maxRuntimeMs: 120000
+- usage: codexCalls=1, claudeCalls=0
+- outputSummary: WEB_BUILD_BASIC: WEB BUILD BASIC {"SITENAME":"ACME"}
+
+## 2026-02-06T15:44:59.997Z
+- Event: Claude invocation
+- reason: user_requested
+- adapter: anthropic_api
+- result: attempted
+
+## 2026-02-06T15:44:59.997Z
+- Event: Claude invocation
+- reason: user_requested
+- adapter: anthropic_api
+- result: unresolved
+
+## 2026-02-06T15:45:00.194Z
+- Event: Claude invocation
+- reason: user_requested
+- adapter: anthropic_api
+- result: adapter_unavailable
+
+## 2026-02-06T15:45:00.195Z
+- Event: Approved task
+- cliCommand: desktop:approve
+- operatorIntent: approveAndRun
+- templateId: web_build_basic
+- status: success
+- mode: standard
+- inputs: {"siteName":"Acme"}
+- allowsClaude: false
+- maxCycles: 1
+- maxRuntimeMs: 120000
+- usage: codexCalls=1, claudeCalls=0
+- outputSummary: WEB_BUILD_BASIC: WEB BUILD BASIC {"SITENAME":"ACME"}
+
+## 2026-02-06T15:45:00.239Z
+- Event: Claude invocation
+- reason: user_requested_cli
+- adapter: anthropic_api
+- result: adapter_unavailable
+
+## 2026-02-06T15:45:00.239Z
+- Event: Claude invocation failed
+- reason: adapter_unavailable
+
+## 2026-02-06T15:45:06.233Z
+- Event: Approved task
+- cliCommand: desktop:smoke
+- operatorIntent: smoke
+- templateId: web_build_basic
+- status: success
+- mode: standard
+- inputs: {"siteName":"Acme","theme":"minimal"}
+- allowsClaude: false
+- maxCycles: 1
+- maxRuntimeMs: 120000
+- usage: codexCalls=1, claudeCalls=0
+- outputSummary: WEB_BUILD_BASIC: WEB BUILD BASIC {"SITENAME":"ACME","THEME":"MINIMAL"}

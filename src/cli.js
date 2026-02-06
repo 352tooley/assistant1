@@ -18,7 +18,7 @@ function showHelp() {
   console.log('assistant1 CLI');
   console.log('Usage:');
   console.log('  node src/cli.js status');
-  console.log('  node src/cli.js run-once');
+  console.log('  node src/cli.js run-once [--advisor=claude|auto|none]');
   console.log('  node src/cli.js headless start [--max-cycles=N] [--max-runtime-ms=N] [--poll-interval-ms=N] [--mode=standard|budget|diagnostic]');
   console.log('  node src/cli.js headless stop');
   console.log('  node src/cli.js reset');
@@ -42,6 +42,7 @@ function parseArgs(argv) {
     pollIntervalMs: null,
     maxCyclesProvided: false,
     maxRuntimeProvided: false,
+    advisor: 'auto',
   };
 
   args.slice(1).forEach((arg) => {
@@ -58,6 +59,9 @@ function parseArgs(argv) {
     }
     if (arg.startsWith('--poll-interval-ms=')) {
       options.pollIntervalMs = Number(arg.split('=')[1]);
+    }
+    if (arg.startsWith('--advisor=')) {
+      options.advisor = arg.split('=')[1];
     }
   });
 
@@ -124,6 +128,12 @@ function main() {
     return process.exit(2);
   }
 
+  if (!['auto', 'none', 'claude'].includes(options.advisor)) {
+    console.error('Error: --advisor must be claude, auto, or none.');
+    showHelp();
+    return process.exit(1);
+  }
+
   if (command === 'status') {
     const status = getStatusSnapshot(options.mode);
     printStatus(status);
@@ -137,17 +147,30 @@ function main() {
   }
 
   if (command === 'run-once') {
-    const result = runOnce(
-      {
-        reset: false,
-        maxTasks: 1,
-        mode: options.mode,
-        pollIntervalMs: options.pollIntervalMs || 5000,
-      },
-      { headlessMode: false, cliCommand: 'run-once', operatorIntent: 'run-once' }
-    );
-    logCliEvent({ command: 'run-once', intent: 'run-once', result: result.status || 'success' });
-    return process.exit(0);
+    try {
+      const result = runOnce(
+        {
+          reset: false,
+          maxTasks: 1,
+          mode: options.mode,
+          pollIntervalMs: options.pollIntervalMs || 5000,
+          requestedAdvisor: options.advisor,
+        },
+        { headlessMode: false, cliCommand: 'run-once', operatorIntent: 'run-once' }
+      );
+      logCliEvent({ command: 'run-once', intent: 'run-once', result: result.status || 'success' });
+      return process.exit(0);
+    } catch (error) {
+      if (options.advisor === 'claude') {
+        console.error(
+          'ERROR: Claude assistance was explicitly requested, but no Claude adapter is available.'
+        );
+        console.error('Provide an Anthropic API key in providers.local.json.');
+        logCliEvent({ command: 'run-once', intent: 'run-once', result: 'claude_unavailable' });
+        return process.exit(2);
+      }
+      throw error;
+    }
   }
 
   if (command === 'headless') {
@@ -169,13 +192,26 @@ function main() {
       reset: false,
       headless: true,
       mode: options.mode,
+      requestedAdvisor: options.advisor,
       pollIntervalMs: options.pollIntervalMs || 5000,
       maxCycles: Number.isFinite(options.maxCycles) ? options.maxCycles : 10,
       maxRuntimeMs: Number.isFinite(options.maxRuntimeMs) ? options.maxRuntimeMs : 60000,
     };
 
-    runHeadless(headlessOptions, { cliCommand: 'headless start', operatorIntent: 'headless start' });
-    return process.exit(0);
+    try {
+      runHeadless(headlessOptions, { cliCommand: 'headless start', operatorIntent: 'headless start' });
+      return process.exit(0);
+    } catch (error) {
+      if (options.advisor === 'claude') {
+        console.error(
+          'ERROR: Claude assistance was explicitly requested, but no Claude adapter is available.'
+        );
+        console.error('Provide an Anthropic API key in providers.local.json.');
+        logCliEvent({ command: 'headless start', intent: 'headless start', result: 'claude_unavailable' });
+        return process.exit(2);
+      }
+      throw error;
+    }
   }
 
   if (command === 'reset') {
