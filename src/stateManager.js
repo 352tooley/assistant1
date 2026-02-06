@@ -13,7 +13,7 @@ function sortObjectKeys(obj) {
     }, {});
 }
 
-function createDefaultState(tasks) {
+function createDefaultState(tasks = []) {
   return {
     version: 1,
     lastRunTimestamp: null,
