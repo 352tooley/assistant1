@@ -17,3 +17,10 @@
 - Rationale: Prevents drift of foundational documents.
 - Decision: Any required change to bootstrap files must be logged here.
 - Rationale: Maintains auditable change control.
+
+## 2026-02-06: Minimal Orchestrator Loop
+
+- Decision: Implement a synchronous Node.js orchestrator in `src/` to parse acceptance criteria, maintain a task queue, and simulate one agent cycle.
+- Rationale: Provides a deterministic local loop without external calls.
+- Decision: Orchestrator appends a cycle entry to `docs/LOOP_LOG.md` at runtime.
+- Rationale: Satisfies loop logging requirement while keeping edits controlled.
