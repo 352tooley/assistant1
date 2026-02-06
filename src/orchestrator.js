@@ -200,6 +200,16 @@ function buildInternalTaskFromTemplate(template, inputs, request) {
       preferredModel: request.preferredModel || '',
     };
   }
+  if (template.id === 'web_build_basic') {
+    return {
+      id: `approved-${template.id}-${Date.now()}`,
+      type: 'web_build_basic',
+      input: {
+        siteName: inputs.siteName,
+        theme: inputs.theme || 'modern',
+      },
+    };
+  }
   if (template.id === 'youtube_analysis') {
     return {
       id: `approved-${template.id}-${Date.now()}`,
