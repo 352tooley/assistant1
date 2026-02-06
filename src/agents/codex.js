@@ -2,6 +2,10 @@ function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * Task shape:
+ * { id: string, type: string, input: any, expectedOutput?: any }
+ */
 function validateTask(task) {
   if (!isObject(task)) {
     return 'Task must be an object.';

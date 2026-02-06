@@ -43,6 +43,15 @@
 - Decision: Preserve deterministic, synchronous execution without network calls.
 - Rationale: Ensures repeatable results and predictable debugging.
 
+## 2026-02-06: Controlled Fix Packets
+
+- Decision: Treat Claude fix packets as advisory input, never authoritative.
+- Rationale: Preserves Codex control and prevents unverified changes.
+- Decision: Validate fix packets against allowed scope and strategies before applying.
+- Rationale: Enforces acceptance constraints and prevents scope expansion.
+- Decision: Allow only one healing attempt per escalation, then stop.
+- Rationale: Avoids infinite loops and preserves deterministic termination.
+
 ## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
 
 - Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.
