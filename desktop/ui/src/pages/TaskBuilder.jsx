@@ -77,7 +77,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
         setFormInputs(result.extractedInputs);
       }
       if (result?.template?.maxCycles) {
-        setMaxCycles(Math.min(1, result.template.maxCycles));
+        setMaxCycles(result.template.maxCycles);
       }
       if (result?.template?.allowsClaude) {
         setAllowsClaude(result.template.allowsClaude);
@@ -90,6 +90,10 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
   };
 
   const onDryRun = async () => {
+    if (!preview?.template) {
+      setMessage('No template selected. Generate a preview first.');
+      return;
+    }
     setMessage('');
     setDryRunSelected(true);
     setDryRunRunning(true);
