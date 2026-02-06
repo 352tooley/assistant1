@@ -74,7 +74,10 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
       const result = await api.buildTaskPreview(input);
       setPreview(result);
       if (result && result.extractedInputs) {
-        setFormInputs(result.extractedInputs);
+        const keys = Object.keys(result.extractedInputs || {});
+        if (keys.length > 0) {
+          setFormInputs((prev) => ({ ...prev, ...result.extractedInputs }));
+        }
       }
       if (result?.template?.maxCycles) {
         setMaxCycles(result.template.maxCycles);
