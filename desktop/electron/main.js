@@ -15,30 +15,36 @@ function resolveOrchestrator() {
   return require(path.join(repoRoot, 'src', 'orchestrator.js'));
 }
 
+let mainWindow;
+
 function createWindow() {
   try {
-    const preloadPath = path.join(__dirname, 'preload.js');
-    console.log('Electron preload path:', preloadPath);
-    const win = new BrowserWindow({
+    mainWindow = new BrowserWindow({
       width: 1200,
       height: 800,
-      backgroundColor: '#0b0c0e',
+      backgroundColor: '#0B1020',
       webPreferences: {
-        preload: preloadPath,
+        preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
       },
     });
 
-    const devUrl = process.env.UI_DEV_SERVER_URL;
+    const devUrl = process.env.VITE_DEV_SERVER_URL;
+
     if (devUrl) {
-      console.log('Electron dev URL:', devUrl);
-      win.loadURL(devUrl);
+      console.log('Loading Vite dev server:', devUrl);
+      mainWindow.loadURL(devUrl);
+      mainWindow.webContents.openDevTools();
     } else {
-      const indexPath = path.join(__dirname, '..', 'ui', 'dist', 'index.html');
-      console.log('Electron index path:', indexPath);
-      win.loadFile(indexPath);
+      const indexPath = path.join(__dirname, '../ui/dist/index.html');
+      console.log('Loading production file:', indexPath);
+      mainWindow.loadFile(indexPath);
     }
+
+    mainWindow.on('closed', () => {
+      mainWindow = null;
+    });
   } catch (err) {
     console.error('❌ Failed to create BrowserWindow:', err);
   }
@@ -126,16 +132,4 @@ function registerIpc() {
 app.whenReady().then(() => {
   registerIpc();
   createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
 });

@@ -57,105 +57,110 @@ const fallbackApi = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [status, setStatus] = useState(null);
-  const [agents, setAgents] = useState([]);
-  const [lastRun, setLastRun] = useState(null);
-  const [liveStatus, setLiveStatus] = useState(null);
+  try {
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [status, setStatus] = useState(null);
+    const [agents, setAgents] = useState([]);
+    const [lastRun, setLastRun] = useState(null);
+    const [liveStatus, setLiveStatus] = useState(null);
 
-  const api = useMemo(() => window.assistant1 || fallbackApi, []);
+    const api = useMemo(() => window.assistant1 || fallbackApi, []);
 
-  const refreshStatus = () => {
-    api.getStatus().then((data) => setStatus(data));
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    api.getStatus().then((data) => mounted && setStatus(data));
-    api.getAgents().then((data) => mounted && setAgents(data));
-    return () => {
-      mounted = false;
+    const refreshStatus = () => {
+      api.getStatus().then((data) => setStatus(data));
     };
-  }, [api]);
 
-  useEffect(() => {
-    if (!api.getLiveRunStatus) {
-      return () => {};
-    }
-    let active = true;
-    const interval = setInterval(() => {
-      api.getLiveRunStatus().then((data) => {
-        if (!active) {
-          return;
-        }
-        setLiveStatus(data || null);
-      });
-    }, 1000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [api]);
+    useEffect(() => {
+      let mounted = true;
+      api.getStatus().then((data) => mounted && setStatus(data));
+      api.getAgents().then((data) => mounted && setAgents(data));
+      return () => {
+        mounted = false;
+      };
+    }, [api]);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty('--bg', theme.background.base);
-    root.style.setProperty('--panel', theme.background.panel);
-    root.style.setProperty('--panel-alt', theme.background.panelAlt);
-    root.style.setProperty('--text', theme.text.primary);
-    root.style.setProperty('--text-secondary', theme.text.secondary);
-    root.style.setProperty('--muted', theme.text.muted);
-    root.style.setProperty('--accent', theme.accent.purple);
-    root.style.setProperty('--accent-blue', theme.accent.blue);
-    root.style.setProperty('--accent-green', theme.accent.green);
-    root.style.setProperty('--accent-amber', theme.accent.amber);
-    root.style.setProperty('--accent-red', theme.accent.red);
-    root.style.setProperty('--radius-card', theme.radius.card);
-    root.style.setProperty('--radius-pill', theme.radius.pill);
-    root.style.setProperty('--shadow-soft', theme.shadow.soft);
-  }, []);
+    useEffect(() => {
+      if (!api.getLiveRunStatus) {
+        return () => {};
+      }
+      let active = true;
+      const interval = setInterval(() => {
+        api.getLiveRunStatus().then((data) => {
+          if (!active) {
+            return;
+          }
+          setLiveStatus(data || null);
+        });
+      }, 1000);
+      return () => {
+        active = false;
+        clearInterval(interval);
+      };
+    }, [api]);
 
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-title">assistant1</span>
-          <span className="brand-subtitle">Desktop Control Center V2</span>
-        </div>
-        <nav className="nav">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              className={`nav-button ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-              type="button"
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-footer">
-          <p className="muted">Execution requires explicit approval</p>
-        </div>
-      </aside>
-      <main className="content">
-        {activeTab === 'dashboard' && (
-          <Dashboard status={status} lastRun={lastRun} liveStatus={liveStatus} onNavigate={setActiveTab} />
-        )}
-        {activeTab === 'agents' && <Agents agents={agents} />}
-        {activeTab === 'builder' && (
-          <TaskBuilder
-            api={api}
-            liveStatus={liveStatus}
-            onRunComplete={(result) => {
-              setLastRun(result);
-              refreshStatus();
-            }}
-          />
-        )}
-        {activeTab === 'activity' && <Activity lastRun={lastRun} />}
-        {activeTab === 'audit' && <Audit api={api} />}
-      </main>
-    </div>
-  );
+    useEffect(() => {
+      const root = document.documentElement;
+      root.style.setProperty('--bg', theme.background.base);
+      root.style.setProperty('--panel', theme.background.panel);
+      root.style.setProperty('--panel-alt', theme.background.panelAlt);
+      root.style.setProperty('--text', theme.text.primary);
+      root.style.setProperty('--text-secondary', theme.text.secondary);
+      root.style.setProperty('--muted', theme.text.muted);
+      root.style.setProperty('--accent', theme.accent.purple);
+      root.style.setProperty('--accent-blue', theme.accent.blue);
+      root.style.setProperty('--accent-green', theme.accent.green);
+      root.style.setProperty('--accent-amber', theme.accent.amber);
+      root.style.setProperty('--accent-red', theme.accent.red);
+      root.style.setProperty('--radius-card', theme.radius.card);
+      root.style.setProperty('--radius-pill', theme.radius.pill);
+      root.style.setProperty('--shadow-soft', theme.shadow.soft);
+    }, []);
+
+    return (
+      <div className="app-shell">
+        <aside className="sidebar">
+          <div className="brand">
+            <span className="brand-title">assistant1</span>
+            <span className="brand-subtitle">Desktop Control Center V2</span>
+          </div>
+          <nav className="nav">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                className={`nav-button ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+                type="button"
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+          <div className="sidebar-footer">
+            <p className="muted">Execution requires explicit approval</p>
+          </div>
+        </aside>
+        <main className="content">
+          {activeTab === 'dashboard' && (
+            <Dashboard status={status} lastRun={lastRun} liveStatus={liveStatus} onNavigate={setActiveTab} />
+          )}
+          {activeTab === 'agents' && <Agents agents={agents} />}
+          {activeTab === 'builder' && (
+            <TaskBuilder
+              api={api}
+              liveStatus={liveStatus}
+              onRunComplete={(result) => {
+                setLastRun(result);
+                refreshStatus();
+              }}
+            />
+          )}
+          {activeTab === 'activity' && <Activity lastRun={lastRun} />}
+          {activeTab === 'audit' && <Audit api={api} />}
+        </main>
+      </div>
+    );
+  } catch (err) {
+    console.error('Renderer crash:', err);
+    throw err;
+  }
 }
