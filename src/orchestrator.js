@@ -1915,7 +1915,10 @@ function runApprovedTask(taskRequest, meta = {}) {
 
   const elapsed = Date.now() - startTime;
   const status = routing.result.status === 'success' ? 'success' : 'failure';
-  const summary = routing.result.output ? summarize(routing.result.output) : summarize(routing.result.error);
+  let summary = routing.result.output ? summarize(routing.result.output) : summarize(routing.result.error);
+  if (internalTask.type === 'web_build_basic' && routing.result.output && routing.result.output.html) {
+    summary = routing.result.output.html;
+  }
   const inputsSummary = summarize(taskRequest.inputs);
   const usageSnapshot = localState.usage || { codexCalls: 0, claudeCalls: 0 };
 
