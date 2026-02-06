@@ -42,3 +42,14 @@
 - Rationale: Avoids external dependencies until orchestration behavior is stable.
 - Decision: Preserve deterministic, synchronous execution without network calls.
 - Rationale: Ensures repeatable results and predictable debugging.
+
+## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
+
+- Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.
+- Rationale: Preserves deterministic routing where Codex is always the default executor. Claude cannot decide when it runs.
+- Decision: Claude does not auto-apply fixes. It returns advisory diagnostics only.
+- Rationale: Keeps the orchestrator as the sole authority. Fixes require explicit operator approval before execution.
+- Decision: Codex remains the only default executor for all tasks.
+- Rationale: Single-executor model avoids ambiguous ownership and keeps the system predictable.
+- Decision: Claude diagnostic output is structured (status, diagnosis, proposedFix) and logged.
+- Rationale: Enables auditability and ensures the orchestrator can consume and log Claude output deterministically.

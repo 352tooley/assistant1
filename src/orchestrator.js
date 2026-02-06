@@ -101,10 +101,29 @@ function summarize(value) {
   return `${raw.slice(0, 117)}...`;
 }
 
+function buildClaudeReturn(claudeResult, routingLog, escalationReason) {
+  routingLog.push('- Agent chosen: Claude');
+  routingLog.push(`- Claude result: ${claudeResult.status}`);
+  routingLog.push(`- Claude diagnosis: ${summarize(claudeResult.diagnosis)}`);
+  routingLog.push(`- Claude proposed fix: ${claudeResult.proposedFix ? claudeResult.proposedFix.strategy : 'none'}`);
+  const nextAction = claudeResult.status === 'resolved' ? 'report proposed fix to operator' : 'halt — unresolved';
+  routingLog.push(`- Next action: ${nextAction}`);
+  return {
+    finalAgent: 'Claude',
+    result: claudeResult,
+    routingLog,
+    escalationReason,
+    escalationOccurred: true,
+    claudeInvoked: true,
+  };
+}
+
 function runRoutingCycle(task) {
   const routingLog = [];
   let result = null;
   let escalationReason = null;
+  const codexOutputs = [];
+  let lastError = null;
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     routingLog.push(`- Agent chosen: Codex (attempt ${attempt})`);
@@ -120,10 +139,14 @@ function runRoutingCycle(task) {
         routingLog,
         escalationReason: null,
         escalationOccurred: false,
+        claudeInvoked: false,
       };
     }
 
-    const classification = classifyFailure({ message: result.error || 'Unknown failure' }, task.id);
+    codexOutputs.push(result.output !== undefined ? result.output : null);
+    lastError = result.error || 'Unknown failure';
+
+    const classification = classifyFailure({ message: lastError }, task.id);
     routingLog.push(`- Failure classification: ${classification.classification} (count ${classification.count})`);
 
     if (classification.classification === 'simple') {
@@ -133,35 +156,24 @@ function runRoutingCycle(task) {
 
     escalationReason = 'complex or repeated failure';
     routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
-    const claudeResult = runClaude(task);
-    const claudeSummary = claudeResult.output !== undefined ? claudeResult.output : claudeResult.message;
-    routingLog.push('- Agent chosen: Claude');
-    routingLog.push(`- Claude result: ${claudeResult.status}`);
-    routingLog.push(`- Claude output summary: ${summarize(claudeSummary)}`);
-    return {
-      finalAgent: 'Claude',
-      result: claudeResult,
-      routingLog,
-      escalationReason,
-      escalationOccurred: true,
-    };
+    const claudeResult = runClaude(task, {
+      error: lastError,
+      classification: classification.classification,
+      failureCount: classification.count,
+      codexOutputs,
+    });
+    return buildClaudeReturn(claudeResult, routingLog, escalationReason);
   }
 
   escalationReason = 'retries exhausted';
   routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
-  const claudeResult = runClaude(task);
-  const claudeSummary = claudeResult.output !== undefined ? claudeResult.output : claudeResult.message;
-  routingLog.push('- Agent chosen: Claude');
-  routingLog.push(`- Claude result: ${claudeResult.status}`);
-  routingLog.push(`- Claude output summary: ${summarize(claudeSummary)}`);
-
-  return {
-    finalAgent: 'Claude',
-    result: claudeResult,
-    routingLog,
-    escalationReason,
-    escalationOccurred: true,
-  };
+  const claudeResult = runClaude(task, {
+    error: lastError,
+    classification: 'complex',
+    failureCount: codexOutputs.length,
+    codexOutputs,
+  });
+  return buildClaudeReturn(claudeResult, routingLog, escalationReason);
 }
 
 function appendLoopLog(entryLines) {
@@ -203,6 +215,7 @@ function run() {
       ...routing.routingLog,
       `- Escalation: ${routing.escalationOccurred ? 'yes' : 'no'}`,
       routing.escalationReason ? `- Escalation reason: ${routing.escalationReason}` : '- Escalation reason: none',
+      `- Claude invoked: ${routing.claudeInvoked ? 'true' : 'false'}`,
     ];
 
     appendLoopLog(entryLines);
