@@ -22,6 +22,7 @@ const originalQuit = app.quit.bind(app);
 app.quit = () => {
   console.error('❌ app.quit() called — blocking auto-exit');
 };
+let isQuitting = false;
 
 function resolveOrchestrator() {
   return require(path.join(repoRoot, 'src', 'orchestrator.js'));
@@ -55,7 +56,36 @@ function createWindow() {
     }
 
     mainWindow.on('closed', () => {
+      console.error('❌ BrowserWindow closed');
       mainWindow = null;
+      if (!isQuitting) {
+        console.error('❌ Window closed unexpectedly; recreating.');
+        setTimeout(createWindow, 500);
+      }
+    });
+
+    mainWindow.on('close', () => {
+      console.error('❌ BrowserWindow close event fired');
+    });
+
+    mainWindow.webContents.on('did-finish-load', () => {
+      console.log('Renderer finished load.');
+    });
+
+    mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+      console.error('❌ Renderer failed to load:', errorCode, errorDescription);
+    });
+
+    app.on('render-process-gone', (_event, details) => {
+      console.error('❌ Render process gone:', details);
+    });
+
+    app.on('child-process-gone', (_event, details) => {
+      console.error('❌ Child process gone:', details);
+    });
+
+    mainWindow.on('unresponsive', () => {
+      console.error('❌ BrowserWindow unresponsive');
     });
   } catch (err) {
     console.error('❌ Failed to create BrowserWindow:', err);
@@ -148,6 +178,15 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   console.log('window-all-closed: preventing auto-quit');
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
+  console.error('❌ app before-quit detected');
+});
+
+app.on('quit', () => {
+  console.error('❌ app quit detected');
 });
 
 setInterval(() => {
