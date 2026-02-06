@@ -14,6 +14,7 @@ process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled rejection:', err);
 });
 
+const fs = require('fs');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
@@ -29,6 +30,7 @@ function resolveOrchestrator() {
 }
 
 let mainWindow;
+let ensureWindowInterval = null;
 
 // App-level listeners — registered once, outside createWindow to prevent leak.
 app.on('render-process-gone', (_event, webContents, details) => {
@@ -277,6 +279,15 @@ function registerIpc() {
 app.whenReady().then(() => {
   registerIpc();
   createWindow();
+
+  if (!ensureWindowInterval) {
+    ensureWindowInterval = setInterval(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        console.error('❌ Main window missing; recreating.');
+        createWindow();
+      }
+    }, 5000);
+  }
 });
 
 app.on('window-all-closed', () => {
