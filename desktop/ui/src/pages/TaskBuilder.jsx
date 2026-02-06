@@ -63,6 +63,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
   const [frozenStatus, setFrozenStatus] = useState(null);
   const [preferredProvider, setPreferredProvider] = useState('');
   const [preferredRole, setPreferredRole] = useState('');
+  const [preferredModel, setPreferredModel] = useState('');
 
   const onPreview = async () => {
     setMessage('');
@@ -101,6 +102,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
         headless: executionMode === 'headless',
         preferredProvider,
         preferredRole,
+        preferredModel,
       });
       setDryRunResult(result);
     } catch (err) {
@@ -126,12 +128,13 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
       const request = {
         templateId: preview.template.id,
         inputs: formInputs,
-        requestedAgentRole: preview.template.agentRole,
-        requestedAdvisor,
-        mode,
-        preferredProvider,
-        preferredRole,
-        limits: {
+      requestedAgentRole: preview.template.agentRole,
+      requestedAdvisor,
+      mode,
+      preferredProvider,
+      preferredRole,
+      preferredModel,
+      limits: {
           maxCycles: Math.min(Number(maxCycles) || 1, preview.template.maxCycles),
           maxRuntimeMs: 120000,
         },
@@ -185,6 +188,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
   const headlessSelected = executionMode === 'headless';
   const providers = Array.isArray(providerData?.providers) ? providerData.providers : [];
   const selectedProvider = providers.find((provider) => provider.name === preferredProvider);
+  const providerModels = selectedProvider?.models || [];
   const providerReady = !preferredProvider || (selectedProvider && selectedProvider.enabled && (selectedProvider.authStatus.apiKey || selectedProvider.authStatus.oauth));
   const openEndedTemplate =
     preview?.template?.id === 'open_ended_idea' || preview?.template?.id === 'open_ended_plan';
@@ -428,6 +432,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
                 onChange={(event) => {
                   setPreferredProvider(event.target.value);
                   setPreferredRole('');
+                  setPreferredModel('');
                 }}
               >
                 <option value="">auto</option>
@@ -445,6 +450,17 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
                 {(selectedProvider?.allowedRoles || []).map((role) => (
                   <option key={role} value={role}>
                     {role}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="input-row">
+              <span>Preferred Model</span>
+              <select value={preferredModel} onChange={(event) => setPreferredModel(event.target.value)}>
+                <option value="">auto</option>
+                {providerModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
                   </option>
                 ))}
               </select>
