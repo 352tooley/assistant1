@@ -3,17 +3,28 @@ import React, { useState } from 'react';
 export default function TaskBuilder({ api }) {
   const [input, setInput] = useState('');
   const [preview, setPreview] = useState(null);
+  const [formInputs, setFormInputs] = useState({});
   const [message, setMessage] = useState('');
 
   const onPreview = async () => {
     setMessage('');
     const result = await api.buildTaskPreview(input);
     setPreview(result);
+    if (result && result.extractedInputs) {
+      setFormInputs(result.extractedInputs);
+    }
   };
 
   const onApprove = () => {
     setMessage('Execution disabled in V1 (preview only).');
   };
+
+  const onInputChange = (key, value) => {
+    setFormInputs((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const missingInputs = preview?.missingInputs || [];
+  const approveDisabled = missingInputs.length > 0 || !preview?.template;
 
   return (
     <section className="page">
@@ -35,7 +46,7 @@ export default function TaskBuilder({ api }) {
           <button className="primary" type="button" onClick={onPreview}>
             Generate Preview
           </button>
-          <button className="ghost-button" type="button" onClick={onApprove}>
+          <button className="ghost-button" type="button" onClick={onApprove} disabled={approveDisabled}>
             Approve
           </button>
         </div>
@@ -47,18 +58,47 @@ export default function TaskBuilder({ api }) {
         {preview ? (
           <div className="preview">
             <div className="stat-row">
-              <span>Task Type</span>
-              <strong>{preview.taskType}</strong>
+              <span>Template</span>
+              <strong>{preview.template?.label || 'Unmatched'}</strong>
             </div>
             <div className="stat-row">
-              <span>Assigned Agent</span>
-              <strong>{preview.assignedAgent}</strong>
+              <span>Confidence</span>
+              <strong>{preview.confidence ?? 0}%</strong>
+            </div>
+            <div className="stat-row">
+              <span>Agent Role</span>
+              <strong>{preview.template?.agentRole || 'n/a'}</strong>
             </div>
             <div className="stat-row">
               <span>Claude Escalation Allowed</span>
-              <strong>{preview.claudeEscalationAllowed ? 'true' : 'false'}</strong>
+              <strong>{preview.template?.allowsClaude ? 'true' : 'false'}</strong>
             </div>
-            <pre className="code-block">{JSON.stringify(preview.inputs, null, 2)}</pre>
+            <div className="stat-row">
+              <span>Max Cycles</span>
+              <strong>{preview.template?.maxCycles ?? 'n/a'}</strong>
+            </div>
+            <div className="preview-inputs">
+              {preview.template?.inputs &&
+                Object.keys(preview.template.inputs).map((key) => {
+                  const isMissing = missingInputs.includes(key);
+                  return (
+                    <label key={key} className={`input-row ${isMissing ? 'missing' : ''}`}>
+                      <span>{key}</span>
+                      <input
+                        type="text"
+                        value={formInputs[key] || ''}
+                        onChange={(event) => onInputChange(key, event.target.value)}
+                        placeholder={preview.template.inputs[key].type}
+                      />
+                    </label>
+                  );
+                })}
+            </div>
+            {missingInputs.length > 0 ? (
+              <p className="muted">Missing required inputs: {missingInputs.join(', ')}</p>
+            ) : (
+              <p className="muted">All required inputs provided.</p>
+            )}
           </div>
         ) : (
           <p className="muted">Preview will appear here after generation.</p>

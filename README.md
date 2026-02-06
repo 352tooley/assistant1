@@ -77,3 +77,9 @@ npm run dev
 - Execute tasks.
 - Modify engine state.
 - Bypass orchestrator safeguards.
+
+## Task Templates
+
+Templates define approved task shapes and input requirements. Natural language is matched to a whitelisted template before a preview is generated. This keeps previews deterministic and prevents free-form tasks.
+
+Free prompts are not allowed because they can bypass guardrails and introduce non-deterministic behavior. If input does not match a template, it is not a task.

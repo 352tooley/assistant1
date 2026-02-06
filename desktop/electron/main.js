@@ -48,17 +48,18 @@ function registerIpc() {
   });
 
   ipcMain.handle('build-task-preview', async (_event, naturalLanguage) => {
-    const text = String(naturalLanguage || '').toLowerCase();
-    const type = text.includes('sum') || text.includes('calculate') ? 'compute_sum' : 'text_transform';
-    const assignedAgent = 'Codex';
-    return {
-      taskType: type,
-      inputs: {
-        naturalLanguage: naturalLanguage || '',
-      },
-      assignedAgent,
-      claudeEscalationAllowed: true,
-    };
+    try {
+      const { resolveTemplate } = require(path.join(repoRoot, 'src', 'templateResolver.js'));
+      const result = resolveTemplate(naturalLanguage || '');
+      return {
+        template: result.template,
+        confidence: result.confidence,
+        extractedInputs: result.extractedInputs,
+        missingInputs: result.missingInputs,
+      };
+    } catch (error) {
+      return { error: String(error) };
+    }
   });
 }
 

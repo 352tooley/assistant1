@@ -1,0 +1,12 @@
+{
+  "id": "youtube_analysis",
+  "label": "YouTube Analysis",
+  "description": "Analyze a YouTube video for key takeaways, structure, and recommendations.",
+  "inputs": {
+    "url": { "type": "string", "required": true },
+    "focus": { "type": "string", "required": false }
+  },
+  "agentRole": "Research",
+  "allowsClaude": true,
+  "maxCycles": 2
+}

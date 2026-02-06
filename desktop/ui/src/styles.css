@@ -168,6 +168,31 @@ body {
   gap: 8px;
 }
 
+.preview-inputs {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.input-row {
+  display: grid;
+  gap: 6px;
+}
+
+.input-row input {
+  background: #0f1217;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.input-row.missing input {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
 .code-block {
   background: #0f1217;
   padding: 12px;

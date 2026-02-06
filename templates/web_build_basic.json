@@ -1,0 +1,12 @@
+{
+  "id": "web_build_basic",
+  "label": "Web Build Basic",
+  "description": "Create a basic static website scaffold with a homepage and styles.",
+  "inputs": {
+    "siteName": { "type": "string", "required": true },
+    "theme": { "type": "string", "required": false }
+  },
+  "agentRole": "DevOps",
+  "allowsClaude": false,
+  "maxCycles": 3
+}
