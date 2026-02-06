@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld('assistant1', {
   getAgents: () => ipcRenderer.invoke('get-agents'),
   buildTaskPreview: (naturalLanguage) => ipcRenderer.invoke('build-task-preview', naturalLanguage),
   executeApprovedTask: (taskRequest) => ipcRenderer.invoke('execute-approved-task', taskRequest),
+  getLiveRunStatus: () => ipcRenderer.invoke('get-live-run-status'),
 });

@@ -26,7 +26,7 @@ function computeMissingInputs(template, values) {
   });
 }
 
-export default function TaskBuilder({ api, onRunComplete }) {
+export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
   const [input, setInput] = useState('');
   const [preview, setPreview] = useState(null);
   const [formInputs, setFormInputs] = useState({});
@@ -36,10 +36,12 @@ export default function TaskBuilder({ api, onRunComplete }) {
   const [mode, setMode] = useState('standard');
   const [maxCycles, setMaxCycles] = useState(1);
   const [allowsClaude, setAllowsClaude] = useState(false);
+  const [frozenStatus, setFrozenStatus] = useState(null);
 
   const onPreview = async () => {
     setMessage('');
     setRunResult(null);
+    setFrozenStatus(null);
     const result = await api.buildTaskPreview(input);
     setPreview(result);
     if (result && result.extractedInputs) {
@@ -66,6 +68,7 @@ export default function TaskBuilder({ api, onRunComplete }) {
     }
     setMessage('');
     setRunning(true);
+    setFrozenStatus(null);
     const request = {
       templateId: preview.template.id,
       inputs: formInputs,
@@ -90,6 +93,27 @@ export default function TaskBuilder({ api, onRunComplete }) {
     }
   };
 
+  const statusFallback = runResult
+    ? {
+        runId: 'completed',
+        status: runResult.status === 'success' ? 'completed' : runResult.status,
+        phase: runResult.status === 'success' ? 'Completed' : 'Failed',
+        message: runResult.message,
+        startedAt: runResult.logHint?.lastTimestamp || null,
+        updatedAt: runResult.logHint?.lastTimestamp || null,
+      }
+    : null;
+
+  React.useEffect(() => {
+    if (liveStatus) {
+      setFrozenStatus(liveStatus);
+      return;
+    }
+    if (!liveStatus && runResult && !running) {
+      setFrozenStatus((prev) => prev || statusFallback);
+    }
+  }, [liveStatus, runResult, running]);
+
   const onInputChange = (key, value) => {
     setFormInputs((prev) => ({ ...prev, [key]: value }));
   };
@@ -102,6 +126,24 @@ export default function TaskBuilder({ api, onRunComplete }) {
   const contractAccent =
     readiness === 'ready' ? theme.accent.green : readiness === 'missing' ? theme.accent.amber : theme.accent.red;
   const approvalLabel = running ? 'Running...' : 'Approve & Run';
+
+  const liveDisplay = liveStatus || frozenStatus;
+  const elapsedMs =
+    liveDisplay && liveDisplay.startedAt
+      ? Date.now() - new Date(liveDisplay.startedAt).getTime()
+      : 0;
+  const elapsedLabel = liveDisplay ? `${Math.max(0, Math.round(elapsedMs / 1000))}s` : null;
+  const statusAccentMap = {
+    starting: theme.accent.blue,
+    running: theme.accent.blue,
+    waiting: theme.accent.blue,
+    escalated: theme.accent.purple,
+    healing: theme.accent.amber,
+    completed: theme.accent.green,
+    failed: theme.accent.red,
+    rejected: theme.accent.red,
+  };
+  const liveAccent = liveDisplay ? statusAccentMap[liveDisplay.status] || theme.accent.blue : theme.accent.blue;
 
   return (
     <section className="page">
@@ -233,6 +275,27 @@ export default function TaskBuilder({ api, onRunComplete }) {
             <p className="muted">No execution yet.</p>
           )}
         </Card>
+
+        {liveDisplay ? (
+          <Card title="Live Run" accent={liveAccent}>
+            <div className="stat-row">
+              <span>Status</span>
+              <strong>{liveDisplay.status}</strong>
+            </div>
+            <div className="stat-row">
+              <span>Phase</span>
+              <strong>{liveDisplay.phase}</strong>
+            </div>
+            <div className="stat-row">
+              <span>Message</span>
+              <strong>{liveDisplay.message}</strong>
+            </div>
+            <div className="stat-row">
+              <span>Elapsed</span>
+              <strong>{elapsedLabel}</strong>
+            </div>
+          </Card>
+        ) : null}
       </div>
     </section>
   );

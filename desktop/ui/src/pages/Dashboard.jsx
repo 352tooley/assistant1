@@ -4,7 +4,7 @@ import UsageSummary from '../components/UsageSummary.jsx';
 import Card from '../components/Card.jsx';
 import theme from '../theme.js';
 
-export default function Dashboard({ status, lastRun, onNavigate }) {
+export default function Dashboard({ status, lastRun, liveStatus, onNavigate }) {
   const data = status || {
     pending: 0,
     completed: 0,
@@ -18,6 +18,7 @@ export default function Dashboard({ status, lastRun, onNavigate }) {
 
   const engineAccent = data.failed > 0 ? theme.accent.red : theme.accent.blue;
   const statusTone = data.failed > 0 ? 'status-pill status-pill--error' : 'status-pill status-pill--ok';
+  const liveAccent = liveStatus ? theme.accent.blue : theme.accent.purple;
 
   return (
     <section className="page">
@@ -54,6 +55,26 @@ export default function Dashboard({ status, lastRun, onNavigate }) {
             View Recent Activity
           </button>
         </Card>
+
+        {liveStatus ? (
+          <Card title="Active Run" accent={liveAccent}>
+            <div className="stat-row">
+              <span>Status</span>
+              <strong>{liveStatus.status}</strong>
+            </div>
+            <div className="stat-row">
+              <span>Phase</span>
+              <strong>{liveStatus.phase}</strong>
+            </div>
+            <div className="stat-row">
+              <span>Message</span>
+              <strong>{liveStatus.message}</strong>
+            </div>
+            <button className="ghost-button" type="button" onClick={() => onNavigate && onNavigate('builder')}>
+              View Live Run
+            </button>
+          </Card>
+        ) : null}
 
         <Card title="Recent Signal" accent={theme.accent.blue}>
           <div className="stat-row">

@@ -39,6 +39,15 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle('get-live-run-status', async () => {
+    try {
+      const { getCurrentRunStatus } = resolveOrchestrator();
+      return getCurrentRunStatus();
+    } catch (error) {
+      return null;
+    }
+  });
+
   ipcMain.handle('get-agents', async () => {
     return [
       { id: 'codex', name: 'Codex', role: 'Implementer', status: 'active' },

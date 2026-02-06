@@ -42,6 +42,7 @@ const fallbackApi = {
     status: 'rejected',
     message: 'Desktop IPC unavailable.',
   }),
+  getLiveRunStatus: async () => null,
 };
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
   const [status, setStatus] = useState(null);
   const [agents, setAgents] = useState([]);
   const [lastRun, setLastRun] = useState(null);
+  const [liveStatus, setLiveStatus] = useState(null);
 
   const api = useMemo(() => window.assistant1 || fallbackApi, []);
 
@@ -62,6 +64,25 @@ export default function App() {
     api.getAgents().then((data) => mounted && setAgents(data));
     return () => {
       mounted = false;
+    };
+  }, [api]);
+
+  useEffect(() => {
+    if (!api.getLiveRunStatus) {
+      return () => {};
+    }
+    let active = true;
+    const interval = setInterval(() => {
+      api.getLiveRunStatus().then((data) => {
+        if (!active) {
+          return;
+        }
+        setLiveStatus(data || null);
+      });
+    }, 1000);
+    return () => {
+      active = false;
+      clearInterval(interval);
     };
   }, [api]);
 
@@ -108,12 +129,13 @@ export default function App() {
       </aside>
       <main className="content">
         {activeTab === 'dashboard' && (
-          <Dashboard status={status} lastRun={lastRun} onNavigate={setActiveTab} />
+          <Dashboard status={status} lastRun={lastRun} liveStatus={liveStatus} onNavigate={setActiveTab} />
         )}
         {activeTab === 'agents' && <Agents agents={agents} />}
         {activeTab === 'builder' && (
           <TaskBuilder
             api={api}
+            liveStatus={liveStatus}
             onRunComplete={(result) => {
               setLastRun(result);
               refreshStatus();

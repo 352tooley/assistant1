@@ -12,6 +12,7 @@ const { critiquePlan } = require('./advisors/critic');
 const { resolvePriority } = require('./advisors/ceo');
 const { validateTaskRequest } = require('./taskValidator');
 const { buildTaskRunResult } = require('./taskRequest');
+const { createRunStatus, updateRunStatus } = require('./runStatus');
 const {
   runtimePath,
   loadState,
@@ -40,6 +41,8 @@ const loopLogPath = path.join(repoRoot, 'docs', 'LOOP_LOG.md');
 const headPath = path.join(repoRoot, '.git', 'HEAD');
 const stopFlagPath = path.join(repoRoot, 'state', 'STOP');
 const runtimeStatusPath = path.join(repoRoot, 'state', 'runtime.json');
+
+let currentRunStatus = null;
 
 function readFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
@@ -1164,6 +1167,10 @@ function getStatusSnapshot(modeOverride) {
   };
 }
 
+function getCurrentRunStatus() {
+  return currentRunStatus;
+}
+
 function resetOnly(meta = {}) {
   resetState();
   logCliEvent({
@@ -1180,8 +1187,21 @@ function runApprovedTask(taskRequest, meta = {}) {
   const mode = normalizeMode(taskRequest && taskRequest.mode);
   const cliCommand = meta.cliCommand || 'desktop:approve';
   const operatorIntent = meta.operatorIntent || 'approveAndRun';
+  const runId = `run-${Date.now()}`;
+
+  currentRunStatus = createRunStatus({
+    runId,
+    status: 'starting',
+    phase: 'Validating',
+    message: 'Validating approved task request.',
+  });
 
   if (!validation.ok) {
+    currentRunStatus = updateRunStatus(currentRunStatus, {
+      status: 'rejected',
+      phase: 'Validation',
+      message: validation.reason,
+    });
     appendLoopLog([
       '',
       `## ${timestamp}`,
@@ -1193,14 +1213,22 @@ function runApprovedTask(taskRequest, meta = {}) {
       `- rejectionReason: ${validation.reason}`,
       `- mode: ${mode}`,
     ]);
-    return buildTaskRunResult({
+    const result = buildTaskRunResult({
       status: 'rejected',
       message: validation.reason,
       logHint: { lastEntries: 1, lastTimestamp: timestamp },
     });
+    currentRunStatus = null;
+    return result;
   }
 
   const template = validation.template;
+  currentRunStatus = updateRunStatus(currentRunStatus, {
+    status: 'running',
+    phase: 'Executing',
+    message: `Executing template ${template.id}.`,
+  });
+
   const internalTask = buildInternalTaskFromTemplate(template, taskRequest.inputs);
   const limits = taskRequest.limits || {};
   const maxCycles = Number.isFinite(limits.maxCycles) ? limits.maxCycles : template.maxCycles;
@@ -1208,6 +1236,11 @@ function runApprovedTask(taskRequest, meta = {}) {
   const startTime = Date.now();
 
   if (!Number.isFinite(maxCycles) || maxCycles < 1) {
+    currentRunStatus = updateRunStatus(currentRunStatus, {
+      status: 'rejected',
+      phase: 'Validation',
+      message: 'Invalid maxCycles.',
+    });
     appendLoopLog([
       '',
       `## ${timestamp}`,
@@ -1218,11 +1251,13 @@ function runApprovedTask(taskRequest, meta = {}) {
       '- status: rejected',
       '- rejectionReason: invalid maxCycles',
     ]);
-    return buildTaskRunResult({
+    const result = buildTaskRunResult({
       status: 'rejected',
       message: 'invalid maxCycles',
       logHint: { lastEntries: 1, lastTimestamp: timestamp },
     });
+    currentRunStatus = null;
+    return result;
   }
 
   const localState = {
@@ -1239,6 +1274,14 @@ function runApprovedTask(taskRequest, meta = {}) {
     maxCycles,
     taskRequest.allowsClaude,
   );
+
+  if (routing.escalationOccurred) {
+    currentRunStatus = updateRunStatus(currentRunStatus, {
+      status: 'escalated',
+      phase: 'Diagnosing',
+      message: 'Escalated to Claude for diagnostics.',
+    });
+  }
 
   const elapsed = Date.now() - startTime;
   const status = routing.result.status === 'success' ? 'success' : 'failure';
@@ -1263,27 +1306,43 @@ function runApprovedTask(taskRequest, meta = {}) {
     `- outputSummary: ${summary}`,
   ]);
 
+  currentRunStatus = updateRunStatus(currentRunStatus, {
+    status: status === 'success' ? 'completed' : 'failed',
+    phase: status === 'success' ? 'Completed' : 'Failed',
+    message: status === 'success' ? 'Task completed.' : 'Task failed.',
+  });
+
   if (elapsed > maxRuntimeMs) {
-    return buildTaskRunResult({
+    currentRunStatus = updateRunStatus(currentRunStatus, {
+      status: 'failed',
+      phase: 'Failed',
+      message: 'Runtime limit exceeded.',
+    });
+    const result = buildTaskRunResult({
       status: 'failure',
       message: 'maxRuntimeMs exceeded',
       outputSummary: summary,
       logHint: { lastEntries: 1, lastTimestamp: timestamp },
     });
+    currentRunStatus = null;
+    return result;
   }
 
-  return buildTaskRunResult({
+  const finalResult = buildTaskRunResult({
     status,
     message: status === 'success' ? 'Task completed.' : 'Task failed.',
     outputSummary: summary,
     logHint: { lastEntries: 1, lastTimestamp: timestamp },
   });
+  currentRunStatus = null;
+  return finalResult;
 }
 
 module.exports = {
   runOnce,
   runHeadless,
   getStatusSnapshot,
+  getCurrentRunStatus,
   runApprovedTask,
   resetOnly,
   logCliEvent,
