@@ -1,0 +1,12 @@
+{
+  "id": "web_clone_basic",
+  "label": "Web Clone Basic",
+  "description": "Fetch a source page and emit a similar static scaffold.",
+  "inputs": {
+    "url": { "type": "url", "required": true },
+    "theme": { "type": "string", "required": false }
+  },
+  "agentRole": "DevOps",
+  "allowsClaude": false,
+  "maxCycles": 3
+}

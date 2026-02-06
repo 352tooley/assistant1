@@ -63,6 +63,13 @@ function extractInputs(template, text) {
       }
     }
 
+    if (key === 'sourceUrl') {
+      const match = text.match(/https?:\/\/\S+/);
+      if (match) {
+        extracted.sourceUrl = match[0];
+      }
+    }
+
     if (key === 'source') {
       if (lower.includes('http')) {
         const match = text.match(/https?:\/\/\S+/);

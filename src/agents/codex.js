@@ -113,6 +113,21 @@ function runCodex(task) {
     return { status: 'success', output: { html } };
   }
 
+  if (task.type === 'web_clone_basic') {
+    const input = task.input || {};
+    if (!input.url || typeof input.url !== 'string') {
+      return { status: 'failure', error: 'url is required for web_clone_basic.' };
+    }
+    try {
+      const parsed = new URL(input.url);
+      const title = parsed.hostname || input.url;
+      const htmlOutput = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>${title}</title>\n  <style>body{font-family:sans-serif;margin:2rem;background:#0b1020;color:#e9ecf5;} .hero{padding:2rem;border-radius:16px;background:linear-gradient(135deg,#1b2138,#232c4d);} .pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#2e385b;color:#9cb4ff;font-size:12px;margin-right:8px;} h1{margin:0 0 12px;} p{margin:0 0 8px;} </style>\n</head>\n<body>\n  <div class=\"hero\">\n    <div class=\"pill\">${input.theme || 'modern'}</div>\n    <h1>${title}</h1>\n    <p>Cloned scaffold inspired by ${title}. Add sections to mirror the source.</p>\n    <p class=\"muted\">Source: ${input.url}</p>\n  </div>\n</body>\n</html>`;
+      return { status: 'success', output: { html: htmlOutput } };
+    } catch {
+      return { status: 'failure', error: 'Invalid source URL.' };
+    }
+  }
+
   if (task.type === 'text_transform') {
     const input = task.input;
     if (!isObject(input) || typeof input.text !== 'string' || typeof input.mode !== 'string') {

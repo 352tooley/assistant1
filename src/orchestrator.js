@@ -219,6 +219,13 @@ function buildInternalTaskFromTemplate(template, inputs, request) {
       preferredModel: request.preferredModel || '',
     };
   }
+  if (template.id === 'web_clone_basic') {
+    return {
+      id: `approved-${template.id}-${Date.now()}`,
+      type: 'web_clone_basic',
+      input: { url: inputs.url, theme: inputs.theme || 'modern' },
+    };
+  }
   const description = `${template.id}: ${template.label}`;
   const payload = JSON.stringify(inputs || {});
   const text = `${description} ${payload}`;
