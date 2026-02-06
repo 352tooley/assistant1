@@ -135,13 +135,13 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
       const request = {
         templateId: preview.template.id,
         inputs: formInputs,
-      requestedAgentRole: preview.template.agentRole,
-      requestedAdvisor,
-      mode,
-      preferredProvider,
-      preferredRole,
-      preferredModel,
-      limits: {
+        requestedAgentRole: preview.template.agentRole,
+        requestedAdvisor,
+        mode,
+        preferredProvider,
+        preferredRole,
+        preferredModel,
+        limits: {
           maxCycles: Math.min(Number(maxCycles) || 1, preview.template.maxCycles),
           maxRuntimeMs: 120000,
         },
