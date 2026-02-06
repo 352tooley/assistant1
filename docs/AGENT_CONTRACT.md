@@ -21,6 +21,11 @@
 - If repository state is unexpected, stop and report before proceeding.
 - If a required action cannot be completed, propose the minimal acceptable alternative and wait for approval.
 
+## Claude Code Engagement
+- Claude Code is not automatically invoked.
+- Engagement requires: explicit contract approval, environment support, and a deterministic escalation trigger.
+- Claude remains advisory-only; Codex remains the sole executor.
+
 ## Stop Conditions
 - All acceptance criteria are met and validated.
 - Any gate fails or an escalation condition is triggered.

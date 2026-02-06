@@ -7,6 +7,7 @@ const { runClaude } = require('./agents/claude');
 const { classifyFailure } = require('./failureClassifier');
 const { validateFixPacket } = require('./fixPacketValidator');
 const { normalizeMode, chooseProvider } = require('./routingPolicy');
+const { claude: claudeEngagement } = require('./agentEngagement');
 const { planTask } = require('./advisors/planner');
 const { critiquePlan } = require('./advisors/critic');
 const { resolvePriority } = require('./advisors/ceo');
@@ -392,6 +393,9 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
     routingLog.push(`- Provider chosen: ${escalationDecision.provider}`);
     routingLog.push(`- Routing mode: ${escalationDecision.mode}`);
     routingLog.push(`- Routing reason: ${escalationDecision.reason}`);
+    if (escalationDecision.trigger) {
+      routingLog.push(`- Claude trigger: ${escalationDecision.trigger}`);
+    }
 
     if (!allowClaude && escalationDecision.provider === 'claude') {
       routingLog.push('- Claude escalation suppressed: not allowed by request.');
@@ -406,6 +410,29 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
         result: { status: 'failure', error: 'Claude not allowed for this task.' },
         routingLog,
         escalationReason: 'claude_disallowed',
+        escalationOccurred: false,
+        claudeStatus: null,
+        fixPacket: null,
+        lastFailure,
+        regressionDetected,
+        regressionInfo,
+        codexAttempts: codexAttempts.count,
+      };
+    }
+
+    if (escalationDecision.provider === 'claude' && !claudeEngagement.enabled) {
+      routingLog.push('- Claude required but unavailable: claude_unavailable_fallback');
+      recordEscalationReason(state, {
+        provider: 'claude',
+        reason: 'claude_unavailable_fallback',
+        taskId: task.id,
+        mode: escalationDecision.mode,
+      });
+      return {
+        finalAgent: 'Codex',
+        result: { status: 'failure', error: 'Claude unavailable; fallback to Codex only.' },
+        routingLog,
+        escalationReason: 'claude_unavailable_fallback',
         escalationOccurred: false,
         claudeStatus: null,
         fixPacket: null,
@@ -441,6 +468,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
 
     escalationReason = 'complex or repeated failure';
     routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
+    routingLog.push('- Claude advisory only: claude_advisory_only');
 
     const claudeContext = {
       error: result.error || null,
@@ -513,6 +541,9 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
   routingLog.push(`- Provider chosen: ${escalationDecision.provider}`);
   routingLog.push(`- Routing mode: ${escalationDecision.mode}`);
   routingLog.push(`- Routing reason: ${escalationDecision.reason}`);
+  if (escalationDecision.trigger) {
+    routingLog.push(`- Claude trigger: ${escalationDecision.trigger}`);
+  }
 
   if (!allowClaude && escalationDecision.provider === 'claude') {
     routingLog.push('- Claude escalation suppressed: not allowed by request.');
@@ -527,6 +558,29 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
       result: { status: 'failure', error: 'Claude not allowed for this task.' },
       routingLog,
       escalationReason: 'claude_disallowed',
+      escalationOccurred: false,
+      claudeStatus: null,
+      fixPacket: null,
+      lastFailure,
+      regressionDetected: false,
+      regressionInfo: null,
+      codexAttempts: codexAttempts.count,
+    };
+  }
+
+  if (escalationDecision.provider === 'claude' && !claudeEngagement.enabled) {
+    routingLog.push('- Claude required but unavailable: claude_unavailable_fallback');
+    recordEscalationReason(state, {
+      provider: 'claude',
+      reason: 'claude_unavailable_fallback',
+      taskId: task.id,
+      mode: escalationDecision.mode,
+    });
+    return {
+      finalAgent: 'Codex',
+      result: { status: 'failure', error: 'Claude unavailable; fallback to Codex only.' },
+      routingLog,
+      escalationReason: 'claude_unavailable_fallback',
       escalationOccurred: false,
       claudeStatus: null,
       fixPacket: null,
@@ -561,6 +615,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
   }
 
   routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
+  routingLog.push('- Claude advisory only: claude_advisory_only');
   const claudeContext = {
     error: lastFailure ? lastFailure.error : null,
     classification: 'complex',
