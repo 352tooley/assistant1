@@ -18,11 +18,12 @@ function buildTaskRequest({ templateId, inputs, requestedAgentRole, requestedAdv
   };
 }
 
-function buildTaskRunResult({ status, message, outputSummary, logHint }) {
+function buildTaskRunResult({ status, message, outputSummary, output, logHint }) {
   return {
     status,
     message,
     outputSummary,
+    output,
     logHint,
   };
 }

@@ -153,7 +153,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
         onRunComplete({
           status: result.status,
           message: result.message,
-          outputSummary: result.outputSummary,
+          outputSummary: result.outputSummary || (result.output && result.output.html) || '',
           timestamp: new Date().toISOString(),
         });
       }

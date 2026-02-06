@@ -1996,6 +1996,7 @@ function runApprovedTask(taskRequest, meta = {}) {
     status,
     message: status === 'success' ? 'Task completed.' : 'Task failed.',
     outputSummary: summary,
+    output: routing.result.output || null,
     logHint: { lastEntries: 1, lastTimestamp: timestamp },
   });
   try {
