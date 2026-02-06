@@ -1,4 +1,6 @@
 import React from 'react';
+import Card from '../components/Card.jsx';
+import theme from '../theme.js';
 
 export default function Activity({ lastRun }) {
   const activityItems = [
@@ -16,25 +18,41 @@ export default function Activity({ lastRun }) {
     { id: 2, time: 'Today 08:47', action: 'CLI status', detail: 'Operator requested status snapshot.' },
     { id: 3, time: 'Today 08:30', action: 'Preview generated', detail: 'Task preview created (no execution).' },
   ];
+  const resolveAccent = (action) => {
+    const lower = String(action || '').toLowerCase();
+    if (lower.includes('fail') || lower.includes('reject')) {
+      return theme.accent.red;
+    }
+    if (lower.includes('escalat')) {
+      return theme.accent.amber;
+    }
+    return theme.accent.green;
+  };
+
   return (
     <section className="page">
-      <header className="page-header">
+      <Card title="Activity Feed" accent={theme.accent.blue} className="hero-card">
         <h1>Activity</h1>
-        <p>Recent actions (includes latest desktop run).</p>
-      </header>
+        <p className="muted">Recent operator actions and execution outcomes.</p>
+      </Card>
 
-      <div className="card">
-        <ul className="activity-list">
-          {activityItems.map((item) => (
-            <li key={item.id} className="activity-item">
+      <div className="timeline">
+        {activityItems.map((item) => (
+          <Card
+            key={item.id}
+            title={item.time}
+            accent={resolveAccent(item.action)}
+            className="timeline-card"
+          >
+            <div className="timeline-row">
+              <span className="timeline-dot" />
               <div>
                 <strong>{item.action}</strong>
                 <p className="muted">{item.detail}</p>
               </div>
-              <span className="timestamp">{item.time}</span>
-            </li>
-          ))}
-        </ul>
+            </div>
+          </Card>
+        ))}
       </div>
     </section>
   );

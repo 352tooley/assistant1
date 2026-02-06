@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Agents from './pages/Agents.jsx';
 import TaskBuilder from './pages/TaskBuilder.jsx';
 import Activity from './pages/Activity.jsx';
+import theme from './theme.js';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -63,6 +64,24 @@ export default function App() {
       mounted = false;
     };
   }, [api]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--bg', theme.background.base);
+    root.style.setProperty('--panel', theme.background.panel);
+    root.style.setProperty('--panel-alt', theme.background.panelAlt);
+    root.style.setProperty('--text', theme.text.primary);
+    root.style.setProperty('--text-secondary', theme.text.secondary);
+    root.style.setProperty('--muted', theme.text.muted);
+    root.style.setProperty('--accent', theme.accent.purple);
+    root.style.setProperty('--accent-blue', theme.accent.blue);
+    root.style.setProperty('--accent-green', theme.accent.green);
+    root.style.setProperty('--accent-amber', theme.accent.amber);
+    root.style.setProperty('--accent-red', theme.accent.red);
+    root.style.setProperty('--radius-card', theme.radius.card);
+    root.style.setProperty('--radius-pill', theme.radius.pill);
+    root.style.setProperty('--shadow-soft', theme.shadow.soft);
+  }, []);
 
   return (
     <div className="app-shell">

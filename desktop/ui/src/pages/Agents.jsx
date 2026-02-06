@@ -1,4 +1,6 @@
 import React from 'react';
+import Card from '../components/Card.jsx';
+import theme from '../theme.js';
 
 const fallbackAgents = [
   { id: 'devops', name: 'DevOps', role: 'Infra Monitor', status: 'offline' },
@@ -10,24 +12,31 @@ export default function Agents({ agents }) {
 
   return (
     <section className="page">
-      <header className="page-header">
+      <Card title="Agent Roster" accent={theme.accent.purple} className="hero-card">
         <h1>Agents</h1>
-        <p>Static roster for UI visualization. Execution is disabled in V1.</p>
-      </header>
+        <p className="muted">Static roster for UI visualization. Execution remains controlled by the orchestrator.</p>
+      </Card>
 
       <div className="grid">
         {list.map((agent) => (
-          <div className="card" key={agent.id}>
-            <h2>{agent.name}</h2>
-            <p className="muted">{agent.role}</p>
+          <Card key={agent.id} title={agent.role} accent={agent.status === 'active' ? theme.accent.green : theme.accent.blue}>
+            <div className="agent-card">
+              <div>
+                <h2>{agent.name}</h2>
+                <p className="muted">Role: {agent.role}</p>
+              </div>
+              <span className={`status-pill ${agent.status === 'active' ? 'status-pill--ok' : 'status-pill--info'}`}>
+                {agent.status}
+              </span>
+            </div>
             <div className="stat-row">
-              <span>Status</span>
-              <strong>{agent.status}</strong>
+              <span>Authority</span>
+              <strong>Advisory / Read-only</strong>
             </div>
             <button className="ghost-button" type="button">
               Toggle (UI only)
             </button>
-          </div>
+          </Card>
         ))}
       </div>
     </section>
