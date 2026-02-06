@@ -23,9 +23,19 @@ node src/cli.js run-once
 node src/cli.js run-once --advisor=claude
 ```
 
+### Dry Run (Validate Only)
+```bash
+node src/cli.js run-once --advisor=claude --dry-run
+```
+
 ### Headless (Always-On)
 ```bash
 node src/cli.js headless start --max-cycles=10 --max-runtime-ms=60000 --poll-interval-ms=5000
+```
+
+### Headless (Claude + Dry Run)
+```bash
+node src/cli.js headless start --advisor=claude --dry-run --max-cycles=1 --max-runtime-ms=1000
 ```
 
 ### Reset Runtime State

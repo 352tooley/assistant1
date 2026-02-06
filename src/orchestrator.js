@@ -854,6 +854,36 @@ function runHeadless(options, meta = {}) {
 
   warnIfMissingFiles();
 
+  if (options.requestedAdvisor === 'claude') {
+    const availability = isClaudeCallable('user_requested_cli');
+    if (!availability.ok) {
+      const timestamp = new Date().toISOString();
+      appendLoopLog([
+        '',
+        `## ${timestamp}`,
+        '- Event: Headless start failed',
+        '- reason: claude_unavailable',
+        `- Headless mode: true`,
+        meta.cliCommand ? `- cliCommand: ${meta.cliCommand}` : '- cliCommand: none',
+        meta.operatorIntent ? `- operatorIntent: ${meta.operatorIntent}` : '- operatorIntent: none',
+      ]);
+      throw new Error(
+        'Claude was explicitly requested for headless execution, but no callable Claude adapter is available.'
+      );
+    }
+  }
+
+  if (options.dryRun) {
+    const result = runOnce(
+      {
+        ...options,
+        maxTasks: options.maxTasks || 1,
+      },
+      { headlessMode: true, cliCommand: meta.cliCommand, operatorIntent: meta.operatorIntent }
+    );
+    return result;
+  }
+
   if (meta.cliCommand) {
     logCliEvent({
       command: meta.cliCommand,
@@ -948,6 +978,25 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
   const initialCriteria = extractSectionList(acceptance, '## Initial Acceptance Criteria');
 
   const currentCommit = getCurrentCommit();
+
+  if (options.dryRun) {
+    const availability = options.requestedAdvisor === 'claude' ? isClaudeCallable('user_requested_cli') : { ok: false };
+    const timestamp = new Date().toISOString();
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Dry run',
+      `- Headless mode: ${headlessMode ? 'true' : 'false'}`,
+      `- Advisor: ${options.requestedAdvisor || 'auto'}`,
+      `- Claude available: ${availability.ok ? 'true' : 'false'}`,
+      cliCommand ? `- cliCommand: ${cliCommand}` : '- cliCommand: none',
+      operatorIntent ? `- operatorIntent: ${operatorIntent}` : '- operatorIntent: none',
+    ]);
+    if (options.requestedAdvisor === 'claude' && !availability.ok) {
+      throw new Error('Claude was explicitly requested, but no callable Claude adapter is available.');
+    }
+    return { status: 'dry_run_ok', message: 'Dry run completed. No execution performed.', claudeAvailable: availability.ok };
+  }
 
   if (options.requestedAdvisor === 'claude') {
     const availability = isClaudeCallable('user_requested_cli');

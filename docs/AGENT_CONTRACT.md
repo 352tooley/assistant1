@@ -39,6 +39,8 @@
 - User-requested Claude invocation is authoritative.
 - The system must not bypass or simulate Claude when explicitly requested.
 - CLI-requested Claude invocation is authoritative and must not fall back.
+- Headless mode obeys the same Claude invocation rules as run-once.
+- Dry-run performs validation and availability checks only; it never executes tasks.
 
 ## Stop Conditions
 - All acceptance criteria are met and validated.
