@@ -58,49 +58,72 @@ function extractSectionList(markdown, heading) {
   return results;
 }
 
+/**
+ * Task shape:
+ * { id: string, type: string, input: any, expectedOutput?: any }
+ */
 function buildTaskQueue(acceptanceItems) {
   const tasks = [
     {
-      id: 'dummy-fail',
-      description: 'Simulate one agent cycle with escalation',
-      status: 'queued',
-      kind: 'dummy',
-      forceFailure: true,
+      id: 'task-success',
+      type: 'text_transform',
+      input: { text: 'Cycle Three', mode: 'upper' },
+      expectedOutput: 'CYCLE THREE',
+    },
+    {
+      id: 'task-fail',
+      type: 'compute_sum',
+      input: { values: [1, 2, 3] },
+      expectedOutput: 10,
     },
   ];
 
   acceptanceItems.forEach((item, index) => {
     tasks.push({
       id: `acc-${index + 1}`,
-      description: item,
-      status: 'queued',
-      kind: 'acceptance',
+      type: 'text_transform',
+      input: { text: item, mode: 'upper' },
+      expectedOutput: item.toUpperCase(),
     });
   });
 
   return tasks;
 }
 
+function summarize(value) {
+  if (value === undefined) {
+    return 'none';
+  }
+  const raw = typeof value === 'string' ? value : JSON.stringify(value);
+  if (raw.length <= 120) {
+    return raw;
+  }
+  return `${raw.slice(0, 117)}...`;
+}
+
 function runRoutingCycle(task) {
   const routingLog = [];
   let result = null;
-  let agent = 'Codex';
   let escalationReason = null;
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     routingLog.push(`- Agent chosen: Codex (attempt ${attempt})`);
     result = runCodex(task);
-    routingLog.push(`- Outcome: ${result.status}`);
+    const codexSummary = result.output !== undefined ? result.output : result.error;
+    routingLog.push(`- Codex result: ${result.status}`);
+    routingLog.push(`- Codex output summary: ${summarize(codexSummary)}`);
 
     if (result.status === 'success') {
       return {
         finalAgent: 'Codex',
         result,
         routingLog,
+        escalationReason: null,
+        escalationOccurred: false,
       };
     }
 
-    const classification = classifyFailure(result, task.id);
+    const classification = classifyFailure({ message: result.error || 'Unknown failure' }, task.id);
     routingLog.push(`- Failure classification: ${classification.classification} (count ${classification.count})`);
 
     if (classification.classification === 'simple') {
@@ -110,29 +133,34 @@ function runRoutingCycle(task) {
 
     escalationReason = 'complex or repeated failure';
     routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
-    agent = 'Claude';
-    result = runClaude(task);
-    routingLog.push(`- Agent chosen: Claude`);
-    routingLog.push(`- Outcome: ${result.status}`);
+    const claudeResult = runClaude(task);
+    const claudeSummary = claudeResult.output !== undefined ? claudeResult.output : claudeResult.message;
+    routingLog.push('- Agent chosen: Claude');
+    routingLog.push(`- Claude result: ${claudeResult.status}`);
+    routingLog.push(`- Claude output summary: ${summarize(claudeSummary)}`);
     return {
-      finalAgent: agent,
-      result,
+      finalAgent: 'Claude',
+      result: claudeResult,
       routingLog,
       escalationReason,
+      escalationOccurred: true,
     };
   }
 
   escalationReason = 'retries exhausted';
   routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
-  result = runClaude(task);
-  routingLog.push(`- Agent chosen: Claude`);
-  routingLog.push(`- Outcome: ${result.status}`);
+  const claudeResult = runClaude(task);
+  const claudeSummary = claudeResult.output !== undefined ? claudeResult.output : claudeResult.message;
+  routingLog.push('- Agent chosen: Claude');
+  routingLog.push(`- Claude result: ${claudeResult.status}`);
+  routingLog.push(`- Claude output summary: ${summarize(claudeSummary)}`);
 
   return {
     finalAgent: 'Claude',
-    result,
+    result: claudeResult,
     routingLog,
     escalationReason,
+    escalationOccurred: true,
   };
 }
 
@@ -155,33 +183,38 @@ function run() {
   const initialCriteria = extractSectionList(acceptance, '## Initial Acceptance Criteria');
 
   const queue = buildTaskQueue(initialCriteria);
-  const task = queue[0];
-  const cycle = getNextCycleNumber();
-  const routing = runRoutingCycle(task);
-
-  const timestamp = new Date().toISOString();
+  const cycleStart = getNextCycleNumber();
   const branch = getBranchName();
 
-  const entryLines = [
-    '',
-    `## ${timestamp}`,
-    '- Event: Orchestrator cycle',
-    `- Cycle: ${cycle}`,
-    `- Branch: \`${branch}\``,
-    `- Task id: \`${task.id}\``,
-    `- Acceptance criteria parsed: ${initialCriteria.length}`,
-    ...routing.routingLog,
-    routing.escalationReason ? `- Escalation reason: ${routing.escalationReason}` : '- Escalation reason: none',
-  ];
+  queue.forEach((task, index) => {
+    const cycle = cycleStart + index;
+    const routing = runRoutingCycle(task);
+    const timestamp = new Date().toISOString();
 
-  appendLoopLog(entryLines);
+    const entryLines = [
+      '',
+      `## ${timestamp}`,
+      '- Event: Orchestrator cycle',
+      `- Cycle: ${cycle}`,
+      `- Branch: \`${branch}\``,
+      `- Task id: \`${task.id}\``,
+      `- Task type: ${task.type}`,
+      `- Acceptance criteria parsed: ${initialCriteria.length}`,
+      ...routing.routingLog,
+      `- Escalation: ${routing.escalationOccurred ? 'yes' : 'no'}`,
+      routing.escalationReason ? `- Escalation reason: ${routing.escalationReason}` : '- Escalation reason: none',
+    ];
+
+    appendLoopLog(entryLines);
+
+    console.log('Cycle:', cycle);
+    console.log('Task processed:', task.id);
+    console.log('Final agent:', routing.finalAgent);
+    console.log('Outcome:', routing.result.status);
+  });
 
   console.log('Acceptance criteria parsed:', initialCriteria.length);
   console.log('Task queue length:', queue.length);
-  console.log('Cycle:', cycle);
-  console.log('Task processed:', task.id);
-  console.log('Final agent:', routing.finalAgent);
-  console.log('Outcome:', routing.result.status);
   console.log('Loop log appended:', path.relative(repoRoot, loopLogPath));
 }
 

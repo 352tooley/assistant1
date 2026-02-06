@@ -33,3 +33,12 @@
 - Rationale: Keeps escalation deterministic and easy to verify.
 - Decision: Claude remains a stub that always succeeds while real integrations are deferred.
 - Rationale: Separates routing logic from future model integration work.
+
+## 2026-02-06: Codex Real Execution Integration
+
+- Decision: Integrate Codex execution first with deterministic task types (text transform and sum computation).
+- Rationale: Validates real task handling while keeping scope minimal.
+- Decision: Keep Claude stubbed while routing and escalation mature.
+- Rationale: Avoids external dependencies until orchestration behavior is stable.
+- Decision: Preserve deterministic, synchronous execution without network calls.
+- Rationale: Ensures repeatable results and predictable debugging.
