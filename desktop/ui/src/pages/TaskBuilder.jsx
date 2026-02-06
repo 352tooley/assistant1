@@ -540,17 +540,19 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
                 <span>Log Hint</span>
                 <strong>{runResult.logHint?.lastTimestamp || 'n/a'}</strong>
               </div>
-              {runResult.output && runResult.output.html ? (
-                <div className="code-block">
-                  <label>Generated HTML</label>
-                  <textarea readOnly value={runResult.output.html} rows={8} />
-                </div>
-              ) : null}
             </div>
           ) : (
             <p className="muted">No execution yet.</p>
           )}
         </Card>
+
+        {runResult && runResult.output && runResult.output.html ? (
+          <Card title="Generated HTML" accent={theme.accent.purple}>
+            <div className="code-block">
+              <textarea readOnly value={runResult.output.html} rows={18} />
+            </div>
+          </Card>
+        ) : null}
 
         <Card title="Dry-Run Result" accent={dryRunAccent}>
           {dryRunResult ? (
