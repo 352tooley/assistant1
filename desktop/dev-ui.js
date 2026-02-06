@@ -4,7 +4,7 @@
  * Scope: UI only (no engine execution)
  */
 
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
 process.on('uncaughtException', (err) => {
@@ -18,8 +18,56 @@ process.on('unhandledRejection', (err) => {
 let win;
 let isQuitting = false;
 
+// Register stub IPC handlers so the renderer does not flood stderr with
+// "No handler registered" errors on every poll cycle.
+function registerDevIpc() {
+  ipcMain.handle('get-status', async () => ({
+    pending: 0,
+    completed: 0,
+    failed: 0,
+    lastRunTimestamp: null,
+    mode: 'standard',
+    usage: { codexCalls: 0, claudeCalls: 0 },
+    headlessStatus: 'idle',
+    stopFlag: false,
+  }));
+
+  ipcMain.handle('get-live-run-status', async () => null);
+
+  ipcMain.handle('get-agents', async () => [
+    { id: 'codex', name: 'Codex', role: 'Implementer', status: 'active' },
+    { id: 'claude', name: 'Claude', role: 'Diagnostician', status: 'standby' },
+    { id: 'planner', name: 'Planner', role: 'Advisor', status: 'advisory' },
+  ]);
+
+  ipcMain.handle('get-audit-summary', async () => ({
+    total: 0, success: 0, failure: 0, rejected: 0, escalations: 0, healings: 0,
+  }));
+
+  ipcMain.handle('get-audit-runs', async () => []);
+  ipcMain.handle('get-audit-run', async () => null);
+
+  ipcMain.handle('build-task-preview', async () => ({
+    template: null, confidence: 0, extractedInputs: {}, missingInputs: [],
+  }));
+
+  ipcMain.handle('execute-approved-task', async () => ({
+    status: 'rejected', message: 'Engine not available in dev-ui mode.',
+  }));
+}
+
+// App-level crash handler — registered once outside createWindow.
+app.on('render-process-gone', (_event, webContents, details) => {
+  console.error('❌ Render process gone:', details);
+  if (win && !win.isDestroyed() && win.webContents === webContents) {
+    console.error('❌ Reloading renderer after crash.');
+    win.webContents.reload();
+  }
+});
+
 function createWindow() {
   win = new BrowserWindow({
+    show: false,
     width: 1400,
     height: 900,
     backgroundColor: '#0B1020',
@@ -34,6 +82,10 @@ function createWindow() {
 
   console.log('Launching Desktop UI at:', devUrl);
 
+  win.once('ready-to-show', () => {
+    win.show();
+  });
+
   win.loadURL(devUrl);
   win.webContents.openDevTools();
 
@@ -47,14 +99,8 @@ function createWindow() {
 
   win.on('close', (event) => {
     if (!isQuitting) {
-      console.error('❌ UI window close intercepted; keeping alive.');
       event.preventDefault();
-      win.hide();
-      setTimeout(() => {
-        if (win) {
-          win.show();
-        }
-      }, 250);
+      console.error('❌ UI window close blocked — use Cmd+Q / Ctrl+Q to quit.');
     }
   });
 
@@ -68,7 +114,10 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerDevIpc();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   // DO NOT auto-quit — dev mode
