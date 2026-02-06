@@ -63,6 +63,17 @@
 - Decision: Keep persisted data bounded to task queue and per-task counters.
 - Rationale: Avoids unbounded growth while preserving necessary history.
 
+## 2026-02-06: Cross-Commit Regression Healing
+
+- Decision: Prefer forward-fix commits over rollbacks for regressions.
+- Rationale: Preserves immutable history and auditability.
+- Decision: Track last successful commit and failures per commit in runtime state.
+- Rationale: Enables deterministic regression detection without CI or network calls.
+- Decision: Allow only one forward-fix attempt per regression commit.
+- Rationale: Prevents loops and bounds automated change.
+- Decision: Stop the loop if regression remediation fails.
+- Rationale: Ensures deterministic termination and operator review.
+
 ## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
 
 - Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.

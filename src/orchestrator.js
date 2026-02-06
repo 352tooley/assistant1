@@ -18,6 +18,11 @@ const {
   incrementFailure,
   recordHealingAttempt,
   getHealingAttempts,
+  recordRegressionFixAttempt,
+  getRegressionFixAttempts,
+  recordFailureForCommit,
+  updateLastSuccessfulCommit,
+  refreshTaskQueueForCommit,
 } = require('./stateManager');
 
 const repoRoot = path.resolve(__dirname, '..');
@@ -40,6 +45,26 @@ function getBranchName() {
   } catch {
     return 'unknown';
   }
+}
+
+function getCurrentCommit() {
+  const result = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' });
+  if (result.status !== 0) {
+    return 'unknown';
+  }
+  return (result.stdout || '').trim();
+}
+
+function getDiffSummary(fromCommit, toCommit) {
+  if (!fromCommit || !toCommit || fromCommit === 'unknown' || toCommit === 'unknown') {
+    return 'diff unavailable';
+  }
+  const result = spawnSync('git', ['diff', '--stat', `${fromCommit}..${toCommit}`], { encoding: 'utf8' });
+  if (result.status !== 0) {
+    return 'diff unavailable';
+  }
+  const output = (result.stdout || '').trim();
+  return output.length > 0 ? output : 'diff empty';
 }
 
 function getNextCycleNumber() {
@@ -82,8 +107,8 @@ function buildTaskQueue(acceptanceItems) {
     {
       id: 'task-success',
       type: 'text_transform',
-      input: { text: 'Cycle Six', mode: 'upper' },
-      expectedOutput: 'CYCLE SIX',
+      input: { text: 'Cycle Seven', mode: 'upper' },
+      expectedOutput: 'CYCLE SEVEN',
     },
     {
       id: 'task-fail',
@@ -116,7 +141,15 @@ function summarize(value) {
   return `${raw.slice(0, 117)}...`;
 }
 
-function applyFixPacket(packet, state) {
+function formatExpectedOutput(value) {
+  if (typeof value === 'string') {
+    const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `'${escaped}'`;
+  }
+  return JSON.stringify(value);
+}
+
+function applyFixPacket(packet, state, taskId, correctedOutput) {
   if (!packet || packet.proposedFix.strategy !== 'fix-task-definition') {
     return { applied: false, reason: 'Unsupported fix strategy.', filesModified: [] };
   }
@@ -125,40 +158,70 @@ function applyFixPacket(packet, state) {
     return { applied: false, reason: 'Target file not included.', filesModified: [] };
   }
 
+  if (correctedOutput === undefined) {
+    return { applied: false, reason: 'Missing corrected output.', filesModified: [] };
+  }
+
   const targetPath = path.join(repoRoot, 'src', 'orchestrator.js');
   const original = readFile(targetPath);
 
-  const marker = "id: 'task-fail'";
+  const marker = `id: '${taskId}'`;
   const markerIndex = original.indexOf(marker);
   if (markerIndex === -1) {
-    return { applied: false, reason: 'task-fail definition not found.', filesModified: [] };
+    return { applied: false, reason: 'Task definition not found.', filesModified: [] };
   }
 
-  const window = original.slice(markerIndex, markerIndex + 300);
-  if (window.includes('expectedOutput: 6')) {
-    return { applied: false, reason: 'Fix already applied.', filesModified: [] };
-  }
-  if (!window.includes('expectedOutput: 10')) {
+  const window = original.slice(markerIndex, markerIndex + 400);
+  const expectedPattern = /expectedOutput: ([^,]+),/;
+  if (!expectedPattern.test(window)) {
     return { applied: false, reason: 'Expected output marker not found.', filesModified: [] };
   }
 
-  const updatedWindow = window.replace('expectedOutput: 10', 'expectedOutput: 6');
+  const replacementValue = formatExpectedOutput(correctedOutput);
+  const updatedWindow = window.replace(expectedPattern, `expectedOutput: ${replacementValue},`);
   const updated = original.slice(0, markerIndex) + updatedWindow + original.slice(markerIndex + window.length);
   fs.writeFileSync(targetPath, updated, 'utf8');
 
-  const taskEntry = state.taskQueue.find((entry) => entry.id === 'task-fail');
+  const taskEntry = state.taskQueue.find((entry) => entry.id === taskId);
   if (taskEntry) {
-    taskEntry.expectedOutput = 6;
+    taskEntry.expectedOutput = correctedOutput;
   }
 
   return { applied: true, reason: 'Fix applied.', filesModified: ['src/orchestrator.js'] };
 }
 
-function runRoutingCycle(task, state) {
+function applyForwardFix(packet, state, taskId, correctedOutput) {
+  const applied = applyFixPacket(packet, state, taskId, correctedOutput);
+  if (!applied.applied) {
+    return { ...applied, commitHash: null };
+  }
+
+  const add = spawnSync('git', ['add', ...applied.filesModified], { encoding: 'utf8' });
+  if (add.status !== 0) {
+    return { applied: false, reason: 'git add failed', filesModified: applied.filesModified, commitHash: null };
+  }
+
+  const description = packet.proposedFix.description || `update ${taskId} expectedOutput`;
+  const short = description.replace(/[^a-zA-Z0-9\s-]/g, '').trim().slice(0, 60);
+  const commitMessage = `fix(regression): ${short || 'apply forward fix'}`;
+  const commit = spawnSync('git', ['commit', '-m', commitMessage], { encoding: 'utf8' });
+  if (commit.status !== 0) {
+    return { applied: false, reason: 'git commit failed', filesModified: applied.filesModified, commitHash: null };
+  }
+
+  const hash = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' });
+  const commitHash = hash.status === 0 ? (hash.stdout || '').trim() : null;
+
+  return { applied: true, reason: 'Fix applied.', filesModified: applied.filesModified, commitHash };
+}
+
+function runRoutingCycle(task, state, currentCommit, diffSummary) {
   const routingLog = [];
   let result = null;
   let escalationReason = null;
   let lastFailure = null;
+  let regressionDetected = false;
+  let regressionInfo = null;
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     routingLog.push(`- Agent chosen: Codex (attempt ${attempt})`);
@@ -177,6 +240,8 @@ function runRoutingCycle(task, state) {
         claudeStatus: null,
         fixPacket: null,
         lastFailure: null,
+        regressionDetected: false,
+        regressionInfo: null,
       };
     }
 
@@ -185,6 +250,26 @@ function runRoutingCycle(task, state) {
     const classification = classifyFailure({ message: result.error || 'Unknown failure' }, task.id, failureCount);
     routingLog.push(`- Failure classification: ${classification.classification} (count ${classification.count})`);
 
+    if (
+      state.lastSuccessfulCommit &&
+      currentCommit !== state.lastSuccessfulCommit &&
+      task.lastCompletedCommit === state.lastSuccessfulCommit
+    ) {
+      regressionDetected = true;
+      regressionInfo = {
+        lastSuccessfulCommit: state.lastSuccessfulCommit,
+        failingCommit: currentCommit,
+        failureSignature: result.error || 'Unknown failure',
+        diffSummary,
+      };
+      recordFailureForCommit(state, currentCommit, task.id, regressionInfo.failureSignature);
+      routingLog.push('- Regression detected: yes');
+      routingLog.push(`- Last successful commit: ${state.lastSuccessfulCommit}`);
+      routingLog.push(`- Failing commit: ${currentCommit}`);
+    } else {
+      routingLog.push('- Regression detected: no');
+    }
+
     if (classification.classification === 'simple') {
       routingLog.push('- Routing decision: retry Codex');
       continue;
@@ -192,12 +277,19 @@ function runRoutingCycle(task, state) {
 
     escalationReason = 'complex or repeated failure';
     routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
-    const claudeResult = runClaude(task, {
+
+    const claudeContext = {
       error: result.error || null,
       classification: classification.classification,
       failureCount: classification.count,
       codexOutputs: result.output !== undefined ? [result.output] : [],
-    });
+    };
+
+    if (regressionInfo) {
+      claudeContext.regression = regressionInfo;
+    }
+
+    const claudeResult = runClaude(task, claudeContext);
     const claudeSummary = claudeResult.output !== undefined ? claudeResult.output : claudeResult.diagnosis || claudeResult.message;
     const claudeStatus = claudeResult.status === 'success' ? 'resolved' : claudeResult.status;
     const fixPacket =
@@ -226,6 +318,8 @@ function runRoutingCycle(task, state) {
       claudeStatus,
       fixPacket,
       lastFailure,
+      regressionDetected,
+      regressionInfo,
     };
   }
 
@@ -265,6 +359,8 @@ function runRoutingCycle(task, state) {
     claudeStatus,
     fixPacket,
     lastFailure,
+    regressionDetected: false,
+    regressionInfo: null,
   };
 }
 
@@ -282,9 +378,13 @@ function appendLoopLog(entryLines) {
   fs.appendFileSync(loopLogPath, entry, 'utf8');
 }
 
-function rerunOrchestrator() {
+function rerunOrchestrator(mode) {
+  const env = { ...process.env, HEALING_RERUN: '1' };
+  if (mode) {
+    env.RERUN_MODE = mode;
+  }
   const result = spawnSync(process.execPath, [__filename], {
-    env: { ...process.env, HEALING_RERUN: '1' },
+    env,
     encoding: 'utf8',
   });
 
@@ -317,11 +417,30 @@ function parseArgs() {
   return options;
 }
 
+function pruneCommitMaps(state) {
+  const allowed = new Set(state.commitsSinceSuccess || []);
+  if (state.lastSuccessfulCommit) {
+    allowed.add(state.lastSuccessfulCommit);
+  }
+  Object.keys(state.failuresPerCommit || {}).forEach((commit) => {
+    if (!allowed.has(commit)) {
+      delete state.failuresPerCommit[commit];
+    }
+  });
+  Object.keys(state.regressionFixAttempts || {}).forEach((commit) => {
+    if (!allowed.has(commit)) {
+      delete state.regressionFixAttempts[commit];
+    }
+  });
+}
+
 function run() {
   const options = parseArgs();
   const healingDisabled = process.env.HEALING_RERUN === '1';
   const acceptance = readFile(acceptancePath);
   const initialCriteria = extractSectionList(acceptance, '## Initial Acceptance Criteria');
+
+  const currentCommit = getCurrentCommit();
 
   if (options.reset) {
     resetState();
@@ -330,14 +449,36 @@ function run() {
   const queue = buildTaskQueue(initialCriteria);
   const loadResult = loadState(queue, { reset: options.reset });
   const state = loadResult.state;
-  const stateStatus = loadResult.status;
+  let stateStatus = loadResult.status;
+
+  if (!state.lastProcessedCommit) {
+    state.lastProcessedCommit = currentCommit;
+  }
+
+  if (state.lastProcessedCommit !== currentCommit) {
+    refreshTaskQueueForCommit(state, queue, currentCommit);
+    stateStatus = 'reinitialized';
+  }
+
+  if (state.lastSuccessfulCommit && currentCommit !== state.lastSuccessfulCommit) {
+    if (!state.commitsSinceSuccess.includes(currentCommit)) {
+      state.commitsSinceSuccess.push(currentCommit);
+      if (state.commitsSinceSuccess.length > 20) {
+        state.commitsSinceSuccess.shift();
+      }
+    }
+  }
+  pruneCommitMaps(state);
 
   const cycleStart = getNextCycleNumber();
   const branch = getBranchName();
+  const diffSummary = state.lastSuccessfulCommit ? getDiffSummary(state.lastSuccessfulCommit, currentCommit) : 'diff unavailable';
 
   let cycleIndex = 0;
   let healingAttempted = false;
   let hadEscalation = false;
+  let regressionHandled = false;
+  let regressionUnresolved = false;
 
   if (options.reset) {
     const timestamp = new Date().toISOString();
@@ -354,13 +495,14 @@ function run() {
   while (nextTask) {
     const { resumed } = markTaskDispatched(state, nextTask.id);
     const cycle = cycleStart + cycleIndex;
-    const routing = runRoutingCycle(nextTask, state);
+    const routing = runRoutingCycle(nextTask, state, currentCommit, diffSummary);
     const timestamp = new Date().toISOString();
 
     let fixStatus = null;
     let fixFiles = [];
     let healingOutcome = null;
     let stateSaveNote = null;
+    let forwardFixCommit = null;
 
     if (routing.escalationOccurred) {
       hadEscalation = true;
@@ -372,16 +514,59 @@ function run() {
       healingAttempted = true;
       healingTriggered = true;
       const attemptCount = recordHealingAttempt(state, nextTask.id);
-      if (routing.fixPacket) {
+
+      if (routing.regressionDetected && routing.regressionInfo) {
+        const failingCommit = routing.regressionInfo.failingCommit;
+        const regressionAttempts = getRegressionFixAttempts(state, failingCommit);
+        if (regressionAttempts >= 1) {
+          fixStatus = 'rejected (regression fix already attempted)';
+          healingOutcome = 'unresolved (regression fix already attempted)';
+          regressionUnresolved = true;
+        } else if (routing.fixPacket) {
+          const validation = validateFixPacket(routing.fixPacket);
+          if (validation.ok) {
+            recordRegressionFixAttempt(state, failingCommit);
+            const correctedOutput = routing.lastFailure ? routing.lastFailure.output : undefined;
+            const applied = applyForwardFix(routing.fixPacket, state, nextTask.id, correctedOutput);
+            fixStatus = applied.applied ? 'accepted' : `rejected (${applied.reason})`;
+            fixFiles = applied.filesModified;
+            forwardFixCommit = applied.commitHash;
+            if (applied.applied) {
+              saveState(state);
+              stateSaveNote = 'pre-rerun';
+              const rerun = rerunOrchestrator('regression');
+              healingOutcome = rerun.resolved ? 'resolved' : `unresolved (${rerun.outputSummary})`;
+              if (rerun.resolved && forwardFixCommit) {
+                updateLastSuccessfulCommit(state, forwardFixCommit);
+                regressionHandled = true;
+              } else {
+                regressionUnresolved = true;
+              }
+            } else {
+              healingOutcome = 'unresolved (fix not applied)';
+              regressionUnresolved = true;
+            }
+          } else {
+            fixStatus = `rejected (${validation.reasons.join('; ')})`;
+            healingOutcome = 'unresolved (validation failed)';
+            regressionUnresolved = true;
+          }
+        } else {
+          fixStatus = 'rejected (no fix packet)';
+          healingOutcome = 'unresolved (no fix packet)';
+          regressionUnresolved = true;
+        }
+      } else if (routing.fixPacket) {
         const validation = validateFixPacket(routing.fixPacket);
         if (validation.ok) {
-          const applied = applyFixPacket(routing.fixPacket, state);
+          const correctedOutput = routing.lastFailure ? routing.lastFailure.output : undefined;
+          const applied = applyFixPacket(routing.fixPacket, state, nextTask.id, correctedOutput);
           fixStatus = applied.applied ? 'accepted' : `rejected (${applied.reason})`;
           fixFiles = applied.filesModified;
           if (applied.applied) {
             saveState(state);
             stateSaveNote = 'pre-rerun';
-            const rerun = rerunOrchestrator();
+            const rerun = rerunOrchestrator('healing');
             healingOutcome = rerun.resolved ? 'resolved' : `unresolved (${rerun.outputSummary})`;
           } else {
             healingOutcome = 'unresolved (fix not applied)';
@@ -394,11 +579,12 @@ function run() {
         fixStatus = 'rejected (no fix packet)';
         healingOutcome = 'unresolved (no fix packet)';
       }
+
       routing.routingLog.push(`- Healing attempts: ${attemptCount}`);
     }
 
     if (routing.result.status === 'success' && routing.finalAgent === 'Codex') {
-      markTaskComplete(state, nextTask.id);
+      markTaskComplete(state, nextTask.id, currentCommit);
     }
 
     if (routing.finalAgent === 'Claude' && !healingTriggered) {
@@ -421,6 +607,16 @@ function run() {
       routing.escalationReason ? `- Escalation reason: ${routing.escalationReason}` : '- Escalation reason: none',
       `- Healing attempts count: ${getHealingAttempts(state, nextTask.id)}`,
     ];
+
+    if (routing.regressionDetected && routing.regressionInfo) {
+      entryLines.push(`- Regression detected: yes`);
+      entryLines.push(`- Last successful commit: ${routing.regressionInfo.lastSuccessfulCommit}`);
+      entryLines.push(`- Failing commit: ${routing.regressionInfo.failingCommit}`);
+      entryLines.push(`- Claude diagnosis: ${routing.fixPacket ? routing.fixPacket.diagnosis : 'none'}`);
+      entryLines.push(`- Forward-fix commit: ${forwardFixCommit || 'none'}`);
+    } else {
+      entryLines.push('- Regression detected: no');
+    }
 
     if (fixStatus) {
       entryLines.push(`- Fix packet status: ${fixStatus}`);
@@ -459,6 +655,10 @@ function run() {
   if (healingDisabled) {
     const resultLine = hadEscalation ? 'HEALING_RESULT=unresolved' : 'HEALING_RESULT=resolved';
     console.log(resultLine);
+  }
+
+  if (!regressionUnresolved && !hadEscalation && state.taskQueue.every((task) => task.status === 'completed')) {
+    updateLastSuccessfulCommit(state, currentCommit);
   }
 
   saveState(state);

@@ -17,11 +17,17 @@ function createDefaultState(tasks) {
   return {
     version: 1,
     lastRunTimestamp: null,
+    lastProcessedCommit: null,
+    lastSuccessfulCommit: null,
+    commitsSinceSuccess: [],
+    failuresPerCommit: {},
+    regressionFixAttempts: {},
     taskQueue: tasks.map((task) => ({
       ...task,
       status: 'pending',
       dispatched: false,
       dispatchCount: 0,
+      lastCompletedCommit: null,
     })),
     failureCounts: {},
     healingAttempts: {},
@@ -48,6 +54,11 @@ function loadState(tasks, options = {}) {
     }
     parsed.failureCounts = parsed.failureCounts || {};
     parsed.healingAttempts = parsed.healingAttempts || {};
+    parsed.lastProcessedCommit = parsed.lastProcessedCommit || null;
+    parsed.lastSuccessfulCommit = parsed.lastSuccessfulCommit || null;
+    parsed.commitsSinceSuccess = parsed.commitsSinceSuccess || [];
+    parsed.failuresPerCommit = parsed.failuresPerCommit || {};
+    parsed.regressionFixAttempts = parsed.regressionFixAttempts || {};
     parsed.lastRunTimestamp = parsed.lastRunTimestamp || null;
     parsed.version = parsed.version || 1;
     return { state: parsed, status: 'loaded' };
@@ -63,6 +74,11 @@ function saveState(state) {
   const payload = {
     version: state.version || 1,
     lastRunTimestamp: new Date().toISOString(),
+    lastProcessedCommit: state.lastProcessedCommit || null,
+    lastSuccessfulCommit: state.lastSuccessfulCommit || null,
+    commitsSinceSuccess: state.commitsSinceSuccess || [],
+    failuresPerCommit: sortObjectKeys(state.failuresPerCommit || {}),
+    regressionFixAttempts: sortObjectKeys(state.regressionFixAttempts || {}),
     taskQueue: state.taskQueue,
     failureCounts: sortObjectKeys(state.failureCounts || {}),
     healingAttempts: sortObjectKeys(state.healingAttempts || {}),
@@ -92,10 +108,11 @@ function markTaskDispatched(state, taskId) {
   return { resumed, task };
 }
 
-function markTaskComplete(state, taskId) {
+function markTaskComplete(state, taskId, commitHash) {
   const task = state.taskQueue.find((entry) => entry.id === taskId);
   if (task) {
     task.status = 'completed';
+    task.lastCompletedCommit = commitHash || task.lastCompletedCommit || null;
   }
 }
 
@@ -120,6 +137,52 @@ function recordHealingAttempt(state, taskId) {
   return next;
 }
 
+function recordRegressionFixAttempt(state, commitHash) {
+  const current = state.regressionFixAttempts[commitHash] || 0;
+  const next = current + 1;
+  state.regressionFixAttempts[commitHash] = next;
+  return next;
+}
+
+function getRegressionFixAttempts(state, commitHash) {
+  return state.regressionFixAttempts[commitHash] || 0;
+}
+
+function recordFailureForCommit(state, commitHash, taskId, signature) {
+  if (!state.failuresPerCommit[commitHash]) {
+    state.failuresPerCommit[commitHash] = [];
+  }
+  state.failuresPerCommit[commitHash].push({
+    taskId,
+    signature,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function updateLastSuccessfulCommit(state, commitHash) {
+  state.lastSuccessfulCommit = commitHash;
+  state.commitsSinceSuccess = [];
+  state.failuresPerCommit = {};
+  state.regressionFixAttempts = {};
+}
+
+function refreshTaskQueueForCommit(state, tasks, currentCommit) {
+  const previous = new Map(state.taskQueue.map((task) => [task.id, task]));
+  state.taskQueue = tasks.map((task) => {
+    const prior = previous.get(task.id);
+    return {
+      ...task,
+      status: 'pending',
+      dispatched: false,
+      dispatchCount: 0,
+      lastCompletedCommit: prior ? prior.lastCompletedCommit : null,
+    };
+  });
+  state.failureCounts = {};
+  state.healingAttempts = {};
+  state.lastProcessedCommit = currentCommit;
+}
+
 function getHealingAttempts(state, taskId) {
   return state.healingAttempts[taskId] || 0;
 }
@@ -141,4 +204,9 @@ module.exports = {
   recordHealingAttempt,
   getHealingAttempts,
   shouldEscalate,
+  recordRegressionFixAttempt,
+  getRegressionFixAttempts,
+  recordFailureForCommit,
+  updateLastSuccessfulCommit,
+  refreshTaskQueueForCommit,
 };

@@ -150,9 +150,15 @@ function runClaude(task, context) {
   const diagnosis = buildDiagnosis(task, ctx);
   const proposedFix = buildProposedFix(diagnosis);
 
+  let summary = diagnosis.summary;
+  if (ctx.regression) {
+    const regression = ctx.regression;
+    summary = `${summary} Regression context: lastSuccessfulCommit=${regression.lastSuccessfulCommit}, failingCommit=${regression.failingCommit}. Diff summary: ${regression.diffSummary}.`;
+  }
+
   return {
     status: diagnosis.resolvable ? 'resolved' : 'unresolved',
-    diagnosis: diagnosis.summary,
+    diagnosis: summary,
     proposedFix,
   };
 }
