@@ -1,0 +1,28 @@
+{
+  "components": [
+    {
+      "type": "hero",
+      "layout": "two-column",
+      "fields": ["headline", "subhead", "primaryCta", "secondaryCta", "imagePlaceholder"],
+      "notes": "Keep copy original; use royalty-free image."
+    },
+    {
+      "type": "feature-grid",
+      "layout": "3-column",
+      "fields": ["title", "description", "iconPlaceholder"],
+      "notes": "Icons from Iconify/Fluent; short unique descriptions."
+    },
+    {
+      "type": "testimonial",
+      "layout": "cards",
+      "fields": ["quote", "name", "role"],
+      "notes": "Use fabricated personas unless you have rights."
+    },
+    {
+      "type": "cta-bar",
+      "layout": "full-width",
+      "fields": ["headline", "ctaLabel", "link"],
+      "notes": "Distinct from source wording."
+    }
+  ]
+}
