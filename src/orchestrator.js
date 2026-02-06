@@ -13,6 +13,7 @@ const { resolvePriority } = require('./advisors/ceo');
 const { validateTaskRequest } = require('./taskValidator');
 const { buildTaskRunResult } = require('./taskRequest');
 const { createRunStatus, updateRunStatus } = require('./runStatus');
+const { appendAuditEntry } = require('./auditReader');
 const {
   runtimePath,
   loadState,
@@ -41,6 +42,7 @@ const loopLogPath = path.join(repoRoot, 'docs', 'LOOP_LOG.md');
 const headPath = path.join(repoRoot, '.git', 'HEAD');
 const stopFlagPath = path.join(repoRoot, 'state', 'STOP');
 const runtimeStatusPath = path.join(repoRoot, 'state', 'runtime.json');
+const auditPath = path.join(repoRoot, 'audit', 'auditIndex.json');
 
 let currentRunStatus = null;
 
@@ -292,6 +294,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
         lastFailure: null,
         regressionDetected: false,
         regressionInfo: null,
+        codexAttempts: codexAttempts.count,
       };
     }
 
@@ -313,6 +316,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
         lastFailure: null,
         regressionDetected: false,
         regressionInfo: null,
+        codexAttempts: codexAttempts.count,
       };
     }
 
@@ -408,6 +412,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
         lastFailure,
         regressionDetected,
         regressionInfo,
+        codexAttempts: codexAttempts.count,
       };
     }
 
@@ -430,6 +435,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
         lastFailure,
         regressionDetected,
         regressionInfo,
+        codexAttempts: codexAttempts.count,
       };
     }
 
@@ -485,6 +491,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
       lastFailure,
       regressionDetected,
       regressionInfo,
+      codexAttempts: codexAttempts.count,
     };
   }
 
@@ -526,6 +533,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
       lastFailure,
       regressionDetected: false,
       regressionInfo: null,
+      codexAttempts: codexAttempts.count,
     };
   }
 
@@ -548,6 +556,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
       lastFailure,
       regressionDetected: false,
       regressionInfo: null,
+      codexAttempts: codexAttempts.count,
     };
   }
 
@@ -596,6 +605,7 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
     lastFailure,
     regressionDetected: false,
     regressionInfo: null,
+    codexAttempts: codexAttempts.count,
   };
 }
 
@@ -1188,6 +1198,11 @@ function runApprovedTask(taskRequest, meta = {}) {
   const cliCommand = meta.cliCommand || 'desktop:approve';
   const operatorIntent = meta.operatorIntent || 'approveAndRun';
   const runId = `run-${Date.now()}`;
+  const phases = [];
+  const decisions = [];
+  const addPhase = (phase, message) => {
+    phases.push({ phase, message, at: new Date().toISOString() });
+  };
 
   currentRunStatus = createRunStatus({
     runId,
@@ -1195,13 +1210,15 @@ function runApprovedTask(taskRequest, meta = {}) {
     phase: 'Validating',
     message: 'Validating approved task request.',
   });
+  addPhase('Validating', 'Validating approved task request.');
 
   if (!validation.ok) {
     currentRunStatus = updateRunStatus(currentRunStatus, {
       status: 'rejected',
-      phase: 'Validation',
+      phase: 'Validating',
       message: validation.reason,
     });
+    addPhase('Validating', validation.reason);
     appendLoopLog([
       '',
       `## ${timestamp}`,
@@ -1218,16 +1235,47 @@ function runApprovedTask(taskRequest, meta = {}) {
       message: validation.reason,
       logHint: { lastEntries: 1, lastTimestamp: timestamp },
     });
+    try {
+      appendAuditEntry({
+        runId,
+        timestamp,
+        templateId: (taskRequest && taskRequest.templateId) || 'unknown',
+        agentRole: (taskRequest && taskRequest.requestedAgentRole) || 'unknown',
+        mode,
+        status: 'rejected',
+        phases,
+        decisions,
+        limits: {
+          maxCycles: taskRequest && taskRequest.limits ? taskRequest.limits.maxCycles : null,
+          cyclesUsed: 0,
+          allowsClaude: Boolean(taskRequest && taskRequest.allowsClaude),
+        },
+        compliance: {
+          templateMatched: false,
+          limitsEnforced: true,
+          policyRespected: true,
+        },
+      });
+    } catch (error) {
+      appendLoopLog([
+        '',
+        `## ${new Date().toISOString()}`,
+        '- Event: Audit warning',
+        `- Warning: Failed to write audit index (${String(error)})`,
+      ]);
+    }
     currentRunStatus = null;
     return result;
   }
 
   const template = validation.template;
+  addPhase('Validating', 'Template validated and inputs accepted.');
   currentRunStatus = updateRunStatus(currentRunStatus, {
     status: 'running',
     phase: 'Executing',
     message: `Executing template ${template.id}.`,
   });
+  addPhase('Executing', `Executing template ${template.id}.`);
 
   const internalTask = buildInternalTaskFromTemplate(template, taskRequest.inputs);
   const limits = taskRequest.limits || {};
@@ -1238,9 +1286,10 @@ function runApprovedTask(taskRequest, meta = {}) {
   if (!Number.isFinite(maxCycles) || maxCycles < 1) {
     currentRunStatus = updateRunStatus(currentRunStatus, {
       status: 'rejected',
-      phase: 'Validation',
+      phase: 'Validating',
       message: 'Invalid maxCycles.',
     });
+    addPhase('Validating', 'Invalid maxCycles.');
     appendLoopLog([
       '',
       `## ${timestamp}`,
@@ -1256,6 +1305,35 @@ function runApprovedTask(taskRequest, meta = {}) {
       message: 'invalid maxCycles',
       logHint: { lastEntries: 1, lastTimestamp: timestamp },
     });
+    try {
+      appendAuditEntry({
+        runId,
+        timestamp,
+        templateId: template.id,
+        agentRole: template.agentRole,
+        mode,
+        status: 'rejected',
+        phases,
+        decisions,
+        limits: {
+          maxCycles,
+          cyclesUsed: 0,
+          allowsClaude: Boolean(taskRequest.allowsClaude),
+        },
+        compliance: {
+          templateMatched: true,
+          limitsEnforced: false,
+          policyRespected: true,
+        },
+      });
+    } catch (error) {
+      appendLoopLog([
+        '',
+        `## ${new Date().toISOString()}`,
+        '- Event: Audit warning',
+        `- Warning: Failed to write audit index (${String(error)})`,
+      ]);
+    }
     currentRunStatus = null;
     return result;
   }
@@ -1274,12 +1352,35 @@ function runApprovedTask(taskRequest, meta = {}) {
     maxCycles,
     taskRequest.allowsClaude,
   );
+  decisions.push({
+    type: 'routing',
+    reason: `agent_${String(routing.finalAgent || 'codex').toLowerCase()}`,
+    policy: 'routingPolicy',
+  });
 
   if (routing.escalationOccurred) {
     currentRunStatus = updateRunStatus(currentRunStatus, {
       status: 'escalated',
       phase: 'Diagnosing',
       message: 'Escalated to Claude for diagnostics.',
+    });
+    addPhase('Escalated', 'Escalated to Claude for diagnostics.');
+    decisions.push({
+      type: 'escalation',
+      reason: routing.escalationReason || 'escalation',
+      policy: 'routingPolicy',
+    });
+  } else if (routing.escalationReason === 'claude_disallowed') {
+    decisions.push({
+      type: 'suppression',
+      reason: 'claude_disallowed',
+      policy: 'claudeAllowance',
+    });
+  } else if (routing.escalationReason === 'claude_suppressed') {
+    decisions.push({
+      type: 'suppression',
+      reason: 'claude_suppressed',
+      policy: 'routingPolicy',
     });
   }
 
@@ -1308,22 +1409,53 @@ function runApprovedTask(taskRequest, meta = {}) {
 
   currentRunStatus = updateRunStatus(currentRunStatus, {
     status: status === 'success' ? 'completed' : 'failed',
-    phase: status === 'success' ? 'Completed' : 'Failed',
+    phase: status === 'success' ? 'Completed' : 'Completed',
     message: status === 'success' ? 'Task completed.' : 'Task failed.',
   });
+  addPhase('Completed', status === 'success' ? 'Task completed.' : 'Task failed.');
 
   if (elapsed > maxRuntimeMs) {
     currentRunStatus = updateRunStatus(currentRunStatus, {
       status: 'failed',
-      phase: 'Failed',
+      phase: 'Completed',
       message: 'Runtime limit exceeded.',
     });
+    addPhase('Completed', 'Runtime limit exceeded.');
     const result = buildTaskRunResult({
       status: 'failure',
       message: 'maxRuntimeMs exceeded',
       outputSummary: summary,
       logHint: { lastEntries: 1, lastTimestamp: timestamp },
     });
+    try {
+      appendAuditEntry({
+        runId,
+        timestamp,
+        templateId: template.id,
+        agentRole: template.agentRole,
+        mode,
+        status: 'failure',
+        phases,
+        decisions,
+        limits: {
+          maxCycles,
+          cyclesUsed: routing.codexAttempts || 0,
+          allowsClaude: Boolean(taskRequest.allowsClaude),
+        },
+        compliance: {
+          templateMatched: true,
+          limitsEnforced: false,
+          policyRespected: true,
+        },
+      });
+    } catch (error) {
+      appendLoopLog([
+        '',
+        `## ${new Date().toISOString()}`,
+        '- Event: Audit warning',
+        `- Warning: Failed to write audit index (${String(error)})`,
+      ]);
+    }
     currentRunStatus = null;
     return result;
   }
@@ -1334,6 +1466,35 @@ function runApprovedTask(taskRequest, meta = {}) {
     outputSummary: summary,
     logHint: { lastEntries: 1, lastTimestamp: timestamp },
   });
+  try {
+    appendAuditEntry({
+      runId,
+      timestamp,
+      templateId: template.id,
+      agentRole: template.agentRole,
+      mode,
+      status,
+      phases,
+      decisions,
+      limits: {
+        maxCycles,
+        cyclesUsed: routing.codexAttempts || 0,
+        allowsClaude: Boolean(taskRequest.allowsClaude),
+      },
+      compliance: {
+        templateMatched: true,
+        limitsEnforced: true,
+        policyRespected: true,
+      },
+    });
+  } catch (error) {
+    appendLoopLog([
+      '',
+      `## ${new Date().toISOString()}`,
+      '- Event: Audit warning',
+      `- Warning: Failed to write audit index (${String(error)})`,
+    ]);
+  }
   currentRunStatus = null;
   return finalResult;
 }

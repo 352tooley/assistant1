@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Agents from './pages/Agents.jsx';
 import TaskBuilder from './pages/TaskBuilder.jsx';
 import Activity from './pages/Activity.jsx';
+import Audit from './pages/Audit.jsx';
 import theme from './theme.js';
 
 const tabs = [
@@ -10,6 +11,7 @@ const tabs = [
   { id: 'agents', label: 'Agents' },
   { id: 'builder', label: 'Task Builder' },
   { id: 'activity', label: 'Activity' },
+  { id: 'audit', label: 'Audit' },
 ];
 
 const fallbackApi = {
@@ -43,6 +45,15 @@ const fallbackApi = {
     message: 'Desktop IPC unavailable.',
   }),
   getLiveRunStatus: async () => null,
+  getAuditSummary: async () => ({
+    total: 0,
+    success: 0,
+    failure: 0,
+    rejected: 0,
+    escalations: 0,
+    healings: 0,
+  }),
+  getAuditRuns: async () => [],
 };
 
 export default function App() {
@@ -143,6 +154,7 @@ export default function App() {
           />
         )}
         {activeTab === 'activity' && <Activity lastRun={lastRun} />}
+        {activeTab === 'audit' && <Audit api={api} />}
       </main>
     </div>
   );

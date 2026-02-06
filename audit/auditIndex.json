@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "runs": [
+    {
+      "runId": "run-1770381748285",
+      "timestamp": "2026-02-06T12:42:28.284Z",
+      "templateId": "web_build_basic",
+      "agentRole": "DevOps",
+      "mode": "standard",
+      "status": "success",
+      "phases": [
+        {
+          "phase": "Validating",
+          "message": "Validating approved task request.",
+          "at": "2026-02-06T12:42:28.285Z"
+        },
+        {
+          "phase": "Validating",
+          "message": "Template validated and inputs accepted.",
+          "at": "2026-02-06T12:42:28.285Z"
+        },
+        {
+          "phase": "Executing",
+          "message": "Executing template web_build_basic.",
+          "at": "2026-02-06T12:42:28.285Z"
+        },
+        {
+          "phase": "Completed",
+          "message": "Task completed.",
+          "at": "2026-02-06T12:42:28.311Z"
+        }
+      ],
+      "decisions": [
+        {
+          "type": "routing",
+          "reason": "agent_codex",
+          "policy": "routingPolicy"
+        }
+      ],
+      "limits": {
+        "maxCycles": 1,
+        "cyclesUsed": 1,
+        "allowsClaude": false
+      },
+      "compliance": {
+        "templateMatched": true,
+        "limitsEnforced": true,
+        "policyRespected": true
+      }
+    }
+  ]
+}

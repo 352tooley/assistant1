@@ -48,6 +48,33 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle('get-audit-summary', async () => {
+    try {
+      const { getAuditSummary } = require(path.join(repoRoot, 'src', 'auditReader.js'));
+      return getAuditSummary();
+    } catch (error) {
+      return { error: String(error) };
+    }
+  });
+
+  ipcMain.handle('get-audit-runs', async (_event, filters) => {
+    try {
+      const { getAuditRuns } = require(path.join(repoRoot, 'src', 'auditReader.js'));
+      return getAuditRuns(filters || {});
+    } catch (error) {
+      return { error: String(error) };
+    }
+  });
+
+  ipcMain.handle('get-audit-run', async (_event, runId) => {
+    try {
+      const { getAuditRun } = require(path.join(repoRoot, 'src', 'auditReader.js'));
+      return getAuditRun(runId);
+    } catch (error) {
+      return { error: String(error) };
+    }
+  });
+
   ipcMain.handle('get-agents', async () => {
     return [
       { id: 'codex', name: 'Codex', role: 'Implementer', status: 'active' },
