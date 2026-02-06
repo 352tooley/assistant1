@@ -1,3 +1,11 @@
+process.on('uncaughtException', (err) => {
+  console.error('❌ Electron main uncaught exception:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Electron main unhandled rejection:', err);
+});
+
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
@@ -8,24 +16,31 @@ function resolveOrchestrator() {
 }
 
 function createWindow() {
-  const preloadPath = path.join(__dirname, 'preload.js');
-  const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    backgroundColor: '#0b0c0e',
-    webPreferences: {
-      preload: preloadPath,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
+  try {
+    const preloadPath = path.join(__dirname, 'preload.js');
+    console.log('Electron preload path:', preloadPath);
+    const win = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      backgroundColor: '#0b0c0e',
+      webPreferences: {
+        preload: preloadPath,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
 
-  const devUrl = process.env.UI_DEV_SERVER_URL;
-  if (devUrl) {
-    win.loadURL(devUrl);
-  } else {
-    const indexPath = path.join(__dirname, '..', 'ui', 'dist', 'index.html');
-    win.loadFile(indexPath);
+    const devUrl = process.env.UI_DEV_SERVER_URL;
+    if (devUrl) {
+      console.log('Electron dev URL:', devUrl);
+      win.loadURL(devUrl);
+    } else {
+      const indexPath = path.join(__dirname, '..', 'ui', 'dist', 'index.html');
+      console.log('Electron index path:', indexPath);
+      win.loadFile(indexPath);
+    }
+  } catch (err) {
+    console.error('❌ Failed to create BrowserWindow:', err);
   }
 }
 

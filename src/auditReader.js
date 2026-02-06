@@ -1,15 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 
-const repoRoot = path.resolve(__dirname, '..');
-const auditFilePath = path.join(repoRoot, 'audit', 'auditIndex.json');
+const auditFilePath = path.join(process.cwd(), 'audit', 'auditIndex.json');
 
 function loadAuditIndex() {
   if (!fs.existsSync(auditFilePath)) {
     return { version: 1, runs: [] };
   }
-  const raw = fs.readFileSync(auditFilePath, 'utf8');
-  return JSON.parse(raw);
+  try {
+    const raw = fs.readFileSync(auditFilePath, 'utf8');
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('⚠️ Failed to parse audit index, using empty:', err.message);
+    return { version: 1, runs: [] };
+  }
 }
 
 function saveAuditIndex(index) {
