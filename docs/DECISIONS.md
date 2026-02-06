@@ -133,3 +133,8 @@
 - Rationale: Single-executor model avoids ambiguous ownership and keeps the system predictable.
 - Decision: Claude diagnostic output is structured (status, diagnosis, proposedFix) and logged.
 - Rationale: Enables auditability and ensures the orchestrator can consume and log Claude output deterministically.
+
+## 2026-02-06: Renderer Black Screen Root Cause
+
+- Decision: Set Vite `root` to `desktop/ui` and align build output to `desktop/ui/dist`.
+- Rationale: The dev server previously served from `desktop/`, which lacks `index.html`, producing a blank renderer. Aligning the root ensures the renderer loads reliably in dev and prod.
