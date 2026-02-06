@@ -318,6 +318,89 @@
       "dryRun": true,
       "providerSelected": "",
       "providerRole": ""
+    },
+    {
+      "runId": "run-1770410846079",
+      "timestamp": "2026-02-06T20:47:26.079Z",
+      "templateId": "web_build_basic",
+      "agentRole": "DevOps",
+      "mode": "standard",
+      "status": "success",
+      "phases": [
+        {
+          "phase": "Validating",
+          "message": "Validating approved task request.",
+          "at": "2026-02-06T20:47:26.079Z"
+        },
+        {
+          "phase": "Validating",
+          "message": "Template validated and inputs accepted.",
+          "at": "2026-02-06T20:47:26.079Z"
+        },
+        {
+          "phase": "Executing",
+          "message": "Executing template web_build_basic.",
+          "at": "2026-02-06T20:47:26.079Z"
+        },
+        {
+          "phase": "Completed",
+          "message": "Task completed.",
+          "at": "2026-02-06T20:47:26.083Z"
+        }
+      ],
+      "decisions": [
+        {
+          "type": "routing",
+          "reason": "agent_codex",
+          "policy": "routingPolicy"
+        }
+      ],
+      "limits": {
+        "maxCycles": 1,
+        "cyclesUsed": 1,
+        "allowsClaude": false
+      },
+      "compliance": {
+        "templateMatched": true,
+        "limitsEnforced": true,
+        "policyRespected": true
+      },
+      "advisorRequested": "auto",
+      "headlessIntent": false,
+      "dryRun": false,
+      "providerSelected": "",
+      "providerRole": ""
+    },
+    {
+      "runId": "dry-run-1770410846176",
+      "timestamp": "2026-02-06T20:47:26.176Z",
+      "templateId": "dry-run",
+      "agentRole": "operator",
+      "mode": "standard",
+      "status": "success",
+      "phases": [
+        {
+          "phase": "Validating",
+          "message": "Dry-run completed.",
+          "at": "2026-02-06T20:47:26.176Z"
+        }
+      ],
+      "decisions": [],
+      "limits": {
+        "maxCycles": 1,
+        "cyclesUsed": 0,
+        "allowsClaude": false
+      },
+      "compliance": {
+        "templateMatched": false,
+        "limitsEnforced": true,
+        "policyRespected": true
+      },
+      "advisorRequested": "claude",
+      "headlessIntent": true,
+      "dryRun": true,
+      "providerSelected": "",
+      "providerRole": ""
     }
   ]
 }
