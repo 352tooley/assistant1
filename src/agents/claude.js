@@ -5,6 +5,9 @@
  * Does NOT auto-apply fixes — output is advisory only.
  */
 
+const { spawnSync } = require('child_process');
+const path = require('path');
+
 function analyzeComputeSum(task, codexOutputs, findings) {
   const input = task.input;
   if (!input || !Array.isArray(input.values)) {
@@ -146,6 +149,56 @@ function runClaude(task, context) {
     failureCount: 0,
     codexOutputs: [],
   };
+
+  if (ctx && ctx.trigger) {
+    const payload = {
+      trigger: ctx.trigger,
+      failureContext: {
+        error: ctx.error,
+        classification: ctx.classification,
+        failureCount: ctx.failureCount,
+        codexOutputs: ctx.codexOutputs,
+      },
+      repoContext: ctx.repoContext || null,
+      constraints: ctx.constraints || null,
+    };
+
+    const runner = `
+      const { runClaudeAdapter } = require('${path.join(__dirname, 'claudeAdapter.js').replace(/\\/g, '\\\\')}');
+      (async () => {
+        const input = JSON.parse(process.env.CLAUDE_ADAPTER_PAYLOAD || '{}');
+        const result = await runClaudeAdapter(input);
+        process.stdout.write(JSON.stringify(result));
+      })().catch((err) => {
+        process.stdout.write(JSON.stringify({ status: 'failure', diagnosis: String(err) }));
+      });
+    `;
+
+    const child = spawnSync(process.execPath, ['-e', runner], {
+      env: { ...process.env, CLAUDE_ADAPTER_PAYLOAD: JSON.stringify(payload) },
+      encoding: 'utf8',
+    });
+
+    if (child.status === 0 && child.stdout) {
+      try {
+        const adapterResult = JSON.parse(child.stdout);
+        if (adapterResult && adapterResult.status === 'success') {
+          const diagnosisText = adapterResult.proposedFixPacket
+            ? adapterResult.proposedFixPacket.diagnosis
+            : adapterResult.diagnosis;
+          return {
+            status: adapterResult.proposedFixPacket ? 'resolved' : 'unresolved',
+            diagnosis: diagnosisText,
+            proposedFix: adapterResult.proposedFixPacket ? adapterResult.proposedFixPacket.proposedFix : null,
+            rootCause: adapterResult.rootCause,
+            confidence: adapterResult.confidence,
+          };
+        }
+      } catch {
+        // Fall back to local diagnostic.
+      }
+    }
+  }
 
   const diagnosis = buildDiagnosis(task, ctx);
   const proposedFix = buildProposedFix(diagnosis);

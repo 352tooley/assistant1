@@ -1,0 +1,9 @@
+{
+  "anthropic": {
+    "enabled": false,
+    "apiKey": "sk-ant-REPLACE_ME",
+    "model": "claude-3-5-sonnet-20241022",
+    "maxTokens": 800,
+    "temperature": 0.2
+  }
+}

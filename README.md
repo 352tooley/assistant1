@@ -87,3 +87,13 @@ Clicking Approve creates a validated task request from a template and runs a sin
 Templates define approved task shapes and input requirements. Natural language is matched to a whitelisted template before a preview is generated. This keeps previews deterministic and prevents free-form tasks.
 
 Free prompts are not allowed because they can bypass guardrails and introduce non-deterministic behavior. If input does not match a template, it is not a task.
+
+## Anthropic Claude Adapter
+
+Claude remains escalation-only and advisory. To enable the Anthropic API adapter:
+
+1. Copy `providers.example.json` to `providers.local.json`.
+2. Set `"anthropic.enabled": true` and add your `apiKey`.
+3. Keep keys out of git and rotate regularly.
+
+The adapter never executes code and never logs secrets. Fix proposals still go through existing validators.

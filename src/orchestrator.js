@@ -471,10 +471,19 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
     routingLog.push('- Claude advisory only: claude_advisory_only');
 
     const claudeContext = {
+      trigger: escalationDecision.trigger || 'repeated_deterministic_failure',
       error: result.error || null,
       classification: classification.classification,
       failureCount: classification.count,
       codexOutputs: result.output !== undefined ? [result.output] : [],
+      repoContext: {
+        lastSuccessfulCommit: state.lastSuccessfulCommit || null,
+        currentCommit,
+      },
+      constraints: {
+        allowedPaths: ['src/', 'docs/'],
+        maxFiles: 2,
+      },
     };
 
     if (regressionInfo) {
@@ -617,10 +626,19 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
   routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
   routingLog.push('- Claude advisory only: claude_advisory_only');
   const claudeContext = {
+    trigger: escalationDecision.trigger || 'repeated_deterministic_failure',
     error: lastFailure ? lastFailure.error : null,
     classification: 'complex',
     failureCount: state.failureCounts[task.id] || 0,
     codexOutputs: lastFailure && lastFailure.output !== undefined ? [lastFailure.output] : [],
+    repoContext: {
+      lastSuccessfulCommit: state.lastSuccessfulCommit || null,
+      currentCommit,
+    },
+    constraints: {
+      allowedPaths: ['src/', 'docs/'],
+      maxFiles: 2,
+    },
   };
   recordUsage(state, {
     provider: 'claude',

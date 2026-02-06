@@ -26,6 +26,11 @@
 - Engagement requires: explicit contract approval, environment support, and a deterministic escalation trigger.
 - Claude remains advisory-only; Codex remains the sole executor.
 
+## Claude Adapter (Anthropic API)
+- Diagnostic + fix proposal only.
+- Requires user-provided Anthropic key in `providers.local.json`.
+- No secrets are logged or written to disk.
+
 ## Stop Conditions
 - All acceptance criteria are met and validated.
 - Any gate fails or an escalation condition is triggered.
