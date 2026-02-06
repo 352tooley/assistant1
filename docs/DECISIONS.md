@@ -85,6 +85,17 @@
 - Decision: Keep Claude escalation-only in all modes.
 - Rationale: Preserves separation of roles and avoids scope expansion.
 
+## 2026-02-06: Headless Always-On Execution
+
+- Decision: Require explicit `--headless` mode for always-on execution.
+- Rationale: Preserves operator control and avoids implicit background behavior.
+- Decision: Use blocking sleep with poll intervals between cycles.
+- Rationale: Ensures deterministic, single-threaded behavior without busy waiting.
+- Decision: Enforce max-cycles and max-runtime limits.
+- Rationale: Bounds execution and prevents runaway loops.
+- Decision: Use file-based stop flag in `state/STOP`.
+- Rationale: Provides an explicit operator-controlled stop signal.
+
 ## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
 
 - Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.

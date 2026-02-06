@@ -33,6 +33,7 @@ const repoRoot = path.resolve(__dirname, '..');
 const acceptancePath = path.join(repoRoot, 'docs', 'ACCEPTANCE.md');
 const loopLogPath = path.join(repoRoot, 'docs', 'LOOP_LOG.md');
 const headPath = path.join(repoRoot, '.git', 'HEAD');
+const stopFlagPath = path.join(repoRoot, 'state', 'STOP');
 
 function readFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
@@ -536,7 +537,15 @@ function rerunOrchestrator(mode) {
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const options = { reset: false, maxTasks: null, mode: normalizeMode(process.env.ROUTING_MODE) };
+  const options = {
+    reset: false,
+    maxTasks: null,
+    mode: normalizeMode(process.env.ROUTING_MODE),
+    headless: false,
+    pollIntervalMs: 5000,
+    maxCycles: 50,
+    maxRuntimeMs: 60000,
+  };
 
   args.forEach((arg) => {
     if (arg === '--reset') {
@@ -551,9 +560,37 @@ function parseArgs() {
     if (arg.startsWith('--mode=')) {
       options.mode = normalizeMode(arg.split('=')[1]);
     }
+    if (arg === '--headless') {
+      options.headless = true;
+    }
+    if (arg.startsWith('--poll-interval-ms=')) {
+      const value = Number(arg.split('=')[1]);
+      if (!Number.isNaN(value) && value >= 1000) {
+        options.pollIntervalMs = value;
+      }
+    }
+    if (arg.startsWith('--max-cycles=')) {
+      const value = Number(arg.split('=')[1]);
+      if (!Number.isNaN(value) && value > 0) {
+        options.maxCycles = value;
+      }
+    }
+    if (arg.startsWith('--max-runtime-ms=')) {
+      const value = Number(arg.split('=')[1]);
+      if (!Number.isNaN(value) && value > 0) {
+        options.maxRuntimeMs = value;
+      }
+    }
   });
 
   return options;
+}
+
+function sleepMs(durationMs) {
+  const start = Date.now();
+  while (Date.now() - start < durationMs) {
+    // Intentional blocking sleep for deterministic headless mode.
+  }
 }
 
 function pruneCommitMaps(state) {
@@ -573,8 +610,79 @@ function pruneCommitMaps(state) {
   });
 }
 
-function run() {
-  const options = parseArgs();
+function runHeadless(options) {
+  const startTime = Date.now();
+  let cycles = 0;
+  let exitReason = null;
+
+  while (true) {
+    if (fs.existsSync(stopFlagPath)) {
+      exitReason = 'operatorStop';
+    }
+
+    if (Date.now() - startTime >= options.maxRuntimeMs) {
+      exitReason = 'maxRuntime';
+    }
+
+    if (cycles >= options.maxCycles) {
+      exitReason = 'maxCycles';
+    }
+
+    if (exitReason) {
+      const timestamp = new Date().toISOString();
+      appendLoopLog([
+        '',
+        `## ${timestamp}`,
+        '- Event: Headless exit',
+        `- Reason: ${exitReason}`,
+        `- Headless mode: true`,
+        `- Poll interval ms: ${options.pollIntervalMs}`,
+      ]);
+      return;
+    }
+
+    const cycleOptions = {
+      ...options,
+      reset: options.reset && cycles === 0,
+    };
+    const cycleResult = runOnce(cycleOptions, { headlessMode: true });
+    cycles += 1;
+
+    if (fs.existsSync(stopFlagPath)) {
+      exitReason = 'operatorStop';
+      continue;
+    }
+
+    if (cycleResult && (cycleResult.status === 'idle' || cycleResult.status === 'done')) {
+      const sleepStart = new Date().toISOString();
+      appendLoopLog([
+        '',
+        `## ${sleepStart}`,
+        '- Event: Headless sleep',
+        `- Headless mode: true`,
+        `- Poll interval ms: ${options.pollIntervalMs}`,
+        `- Sleep start: ${sleepStart}`,
+      ]);
+
+      if (cycleResult.state) {
+        saveState(cycleResult.state);
+      }
+      sleepMs(options.pollIntervalMs);
+
+      const wakeTime = new Date().toISOString();
+      appendLoopLog([
+        '',
+        `## ${wakeTime}`,
+        '- Event: Headless wake',
+        `- Headless mode: true`,
+        `- Poll interval ms: ${options.pollIntervalMs}`,
+        `- Wake time: ${wakeTime}`,
+      ]);
+    }
+  }
+}
+
+function runOnce(options, { headlessMode }) {
   const healingDisabled = process.env.HEALING_RERUN === '1';
   const mode = normalizeMode(options.mode);
   const acceptance = readFile(acceptancePath);
@@ -633,6 +741,20 @@ function run() {
   }
 
   let nextTask = getNextTask(state);
+  if (!nextTask) {
+    saveState(state);
+    const timestamp = new Date().toISOString();
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Idle',
+      `- Headless mode: ${headlessMode ? 'true' : 'false'}`,
+      `- Poll interval ms: ${options.pollIntervalMs}`,
+      '- Exit reason: idle',
+    ]);
+    return { status: 'idle', state };
+  }
+
   while (nextTask) {
     const { resumed } = markTaskDispatched(state, nextTask.id);
     const cycle = cycleStart + cycleIndex;
@@ -748,6 +870,8 @@ function run() {
       `- Task resume: ${resumed ? 'yes' : 'no'}`,
       `- State: ${stateStatus}`,
       `- Routing mode: ${mode}`,
+      `- Headless mode: ${headlessMode ? 'true' : 'false'}`,
+      `- Poll interval ms: ${options.pollIntervalMs}`,
       `- Acceptance criteria parsed: ${initialCriteria.length}`,
       ...routing.routingLog,
       `- Escalation: ${routing.escalationOccurred ? 'yes' : 'no'}`,
@@ -789,12 +913,12 @@ function run() {
     if (fixStatus) {
       console.log('Fix packet status:', fixStatus);
       console.log('Healing outcome:', healingOutcome || 'unresolved');
-      return;
+      return { status: 'healed', state };
     }
 
     cycleIndex += 1;
     if (options.maxTasks && cycleIndex >= options.maxTasks) {
-      return;
+      return { status: 'maxTasks', state };
     }
 
     nextTask = getNextTask(state);
@@ -814,6 +938,17 @@ function run() {
   console.log('Acceptance criteria parsed:', initialCriteria.length);
   console.log('Task queue length:', state.taskQueue.length);
   console.log('Loop log appended:', path.relative(repoRoot, loopLogPath));
+
+  return { status: 'done', state };
+}
+
+function run() {
+  const options = parseArgs();
+  if (options.headless) {
+    return runHeadless(options);
+  }
+
+  return runOnce(options, { headlessMode: false });
 }
 
 run();

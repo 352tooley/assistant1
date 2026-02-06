@@ -249,12 +249,14 @@ function refreshTaskQueueForCommit(state, tasks, currentCommit) {
   const previous = new Map(state.taskQueue.map((task) => [task.id, task]));
   state.taskQueue = tasks.map((task) => {
     const prior = previous.get(task.id);
+    const lastCompletedCommit = prior ? prior.lastCompletedCommit : null;
+    const completed = lastCompletedCommit === currentCommit;
     return {
       ...task,
-      status: 'pending',
-      dispatched: false,
-      dispatchCount: 0,
-      lastCompletedCommit: prior ? prior.lastCompletedCommit : null,
+      status: completed ? 'completed' : 'pending',
+      dispatched: completed ? true : false,
+      dispatchCount: completed ? prior.dispatchCount || 1 : 0,
+      lastCompletedCommit,
     };
   });
   state.failureCounts = {};
