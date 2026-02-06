@@ -54,6 +54,14 @@ function registerDevIpc() {
   ipcMain.handle('execute-approved-task', async () => ({
     status: 'rejected', message: 'Engine not available in dev-ui mode.',
   }));
+
+  ipcMain.handle('run-dry-run', async () => ({
+    status: 'rejected', message: 'Engine not available in dev-ui mode.',
+  }));
+
+  ipcMain.handle('check-claude-availability', async () => ({
+    ok: false, reason: 'dev-ui mode',
+  }));
 }
 
 // App-level crash handler — registered once outside createWindow.
