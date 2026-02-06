@@ -44,6 +44,11 @@ const fallbackApi = {
     status: 'rejected',
     message: 'Desktop IPC unavailable.',
   }),
+  runDryRun: async () => ({
+    status: 'rejected',
+    message: 'Desktop IPC unavailable.',
+  }),
+  checkClaudeAvailability: async () => ({ ok: false, reason: 'ipc_unavailable' }),
   getLiveRunStatus: async () => null,
   getAuditSummary: async () => ({
     total: 0,
@@ -63,6 +68,7 @@ export default function App() {
     const [agents, setAgents] = useState([]);
     const [lastRun, setLastRun] = useState(null);
     const [liveStatus, setLiveStatus] = useState(null);
+    const [claudeStatus, setClaudeStatus] = useState(null);
 
     const api = useMemo(() => window.assistant1 || fallbackApi, []);
 
@@ -74,6 +80,9 @@ export default function App() {
       let mounted = true;
       api.getStatus().then((data) => mounted && setStatus(data));
       api.getAgents().then((data) => mounted && setAgents(data));
+      if (api.checkClaudeAvailability) {
+        api.checkClaudeAvailability().then((data) => mounted && setClaudeStatus(data));
+      }
       return () => {
         mounted = false;
       };
@@ -141,13 +150,20 @@ export default function App() {
         </aside>
         <main className="content">
           {activeTab === 'dashboard' && (
-            <Dashboard status={status} lastRun={lastRun} liveStatus={liveStatus} onNavigate={setActiveTab} />
+            <Dashboard
+              status={status}
+              lastRun={lastRun}
+              liveStatus={liveStatus}
+              claudeStatus={claudeStatus}
+              onNavigate={setActiveTab}
+            />
           )}
           {activeTab === 'agents' && <Agents agents={agents} />}
           {activeTab === 'builder' && (
             <TaskBuilder
               api={api}
               liveStatus={liveStatus}
+              claudeStatus={claudeStatus}
               onRunComplete={(result) => {
                 setLastRun(result);
                 refreshStatus();

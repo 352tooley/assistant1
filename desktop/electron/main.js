@@ -182,6 +182,37 @@ function registerIpc() {
       return { status: 'rejected', message: String(error) };
     }
   });
+
+  ipcMain.handle('run-dry-run', async (_event, config) => {
+    try {
+      const { runOnce, runHeadless } = resolveOrchestrator();
+      const options = {
+        reset: false,
+        maxTasks: 1,
+        mode: config && config.mode ? config.mode : 'standard',
+        requestedAdvisor: config && config.requestedAdvisor ? config.requestedAdvisor : 'auto',
+        dryRun: true,
+        pollIntervalMs: 5000,
+        maxCycles: 1,
+        maxRuntimeMs: 1000,
+      };
+      if (config && config.headless) {
+        return runHeadless({ ...options, headless: true }, { cliCommand: 'desktop:dry-run', operatorIntent: 'dry-run' });
+      }
+      return runOnce(options, { headlessMode: false, cliCommand: 'desktop:dry-run', operatorIntent: 'dry-run' });
+    } catch (error) {
+      return { status: 'rejected', message: String(error) };
+    }
+  });
+
+  ipcMain.handle('check-claude-availability', async () => {
+    try {
+      const { isClaudeCallable } = require(path.join(repoRoot, 'src', 'agents', 'claudeAdapter.js'));
+      return isClaudeCallable('user_requested_cli');
+    } catch (error) {
+      return { ok: false, reason: 'error' };
+    }
+  });
 }
 
 app.whenReady().then(() => {

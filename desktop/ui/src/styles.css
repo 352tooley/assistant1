@@ -338,6 +338,21 @@ body {
   border: 1px solid rgba(247, 185, 85, 0.4);
 }
 
+.warning-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  background: rgba(247, 185, 85, 0.2);
+  color: var(--accent-amber);
+  border: 1px solid rgba(247, 185, 85, 0.4);
+  margin-top: 8px;
+}
+
 .divider {
   height: 1px;
   background: var(--border);
@@ -358,6 +373,13 @@ body {
 
 .timeline-card .card-header {
   margin-bottom: 8px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .timeline-row {

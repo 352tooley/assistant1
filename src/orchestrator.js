@@ -980,8 +980,9 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
   const currentCommit = getCurrentCommit();
 
   if (options.dryRun) {
-    const availability = options.requestedAdvisor === 'claude' ? isClaudeCallable('user_requested_cli') : { ok: false };
+    const availability = isClaudeCallable('user_requested_cli');
     const timestamp = new Date().toISOString();
+    const runId = `dry-run-${Date.now()}`;
     appendLoopLog([
       '',
       `## ${timestamp}`,
@@ -993,7 +994,61 @@ function runOnce(options, { headlessMode, cliCommand, operatorIntent }) {
       operatorIntent ? `- operatorIntent: ${operatorIntent}` : '- operatorIntent: none',
     ]);
     if (options.requestedAdvisor === 'claude' && !availability.ok) {
+      try {
+        appendAuditEntry({
+          runId,
+          timestamp,
+          templateId: 'dry-run',
+          agentRole: 'operator',
+          mode,
+          status: 'rejected',
+          phases: [{ phase: 'Validating', message: 'Claude unavailable for dry-run.', at: timestamp }],
+          decisions: [],
+          limits: {
+            maxCycles: options.maxCycles || 0,
+            cyclesUsed: 0,
+            allowsClaude: false,
+          },
+          compliance: {
+            templateMatched: false,
+            limitsEnforced: true,
+            policyRespected: true,
+          },
+          advisorRequested: options.requestedAdvisor || 'auto',
+          headlessIntent: Boolean(headlessMode),
+          dryRun: true,
+        });
+      } catch {
+        // Ignore audit failures in dry-run.
+      }
       throw new Error('Claude was explicitly requested, but no callable Claude adapter is available.');
+    }
+    try {
+      appendAuditEntry({
+        runId,
+        timestamp,
+        templateId: 'dry-run',
+        agentRole: 'operator',
+        mode,
+        status: 'success',
+        phases: [{ phase: 'Validating', message: 'Dry-run completed.', at: timestamp }],
+        decisions: [],
+        limits: {
+          maxCycles: options.maxCycles || 0,
+          cyclesUsed: 0,
+          allowsClaude: false,
+        },
+        compliance: {
+          templateMatched: false,
+          limitsEnforced: true,
+          policyRespected: true,
+        },
+        advisorRequested: options.requestedAdvisor || 'auto',
+        headlessIntent: Boolean(headlessMode),
+        dryRun: true,
+      });
+    } catch {
+      // Ignore audit failures in dry-run.
     }
     return { status: 'dry_run_ok', message: 'Dry run completed. No execution performed.', claudeAvailable: availability.ok };
   }
@@ -1453,6 +1508,9 @@ function runApprovedTask(taskRequest, meta = {}) {
           limitsEnforced: true,
           policyRespected: true,
         },
+        advisorRequested: requestedAdvisor,
+        headlessIntent: false,
+        dryRun: false,
       });
     } catch (error) {
       appendLoopLog([
@@ -1741,6 +1799,9 @@ function runApprovedTask(taskRequest, meta = {}) {
         limitsEnforced: true,
         policyRespected: true,
       },
+      advisorRequested: requestedAdvisor,
+      headlessIntent: false,
+      dryRun: false,
     });
   } catch (error) {
     appendLoopLog([

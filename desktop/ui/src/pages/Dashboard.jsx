@@ -4,7 +4,27 @@ import UsageSummary from '../components/UsageSummary.jsx';
 import Card from '../components/Card.jsx';
 import theme from '../theme.js';
 
-export default function Dashboard({ status, lastRun, liveStatus, onNavigate }) {
+function describeClaudeStatus(claudeStatus) {
+  if (!claudeStatus) {
+    return { label: 'Unknown', detail: 'Status not yet fetched.' };
+  }
+  if (claudeStatus.ok) {
+    return { label: 'Available', detail: 'Claude will run when explicitly requested.' };
+  }
+  const reason = claudeStatus.reason || 'unavailable';
+  if (reason === 'missing_api_key') {
+    return { label: 'Unavailable', detail: 'Missing API key.' };
+  }
+  if (reason === 'engagement_disabled') {
+    return { label: 'Unavailable', detail: 'Provider disabled.' };
+  }
+  if (reason === 'trigger_not_allowed') {
+    return { label: 'Unavailable', detail: 'Trigger not allowed.' };
+  }
+  return { label: 'Unavailable', detail: 'Claude adapter not callable.' };
+}
+
+export default function Dashboard({ status, lastRun, liveStatus, claudeStatus, onNavigate }) {
   const data = status || {
     pending: 0,
     completed: 0,
@@ -19,6 +39,9 @@ export default function Dashboard({ status, lastRun, liveStatus, onNavigate }) {
   const engineAccent = data.failed > 0 ? theme.accent.red : theme.accent.blue;
   const statusTone = data.failed > 0 ? 'status-pill status-pill--error' : 'status-pill status-pill--ok';
   const liveAccent = liveStatus ? theme.accent.blue : theme.accent.purple;
+  const claudeInfo = describeClaudeStatus(claudeStatus);
+  const claudeAccent = claudeStatus && claudeStatus.ok ? theme.accent.green : theme.accent.red;
+  const claudePill = claudeStatus && claudeStatus.ok ? 'status-pill status-pill--ok' : 'status-pill status-pill--error';
 
   return (
     <section className="page">
@@ -75,6 +98,15 @@ export default function Dashboard({ status, lastRun, liveStatus, onNavigate }) {
             </button>
           </Card>
         ) : null}
+
+        <Card title="Claude Status" accent={claudeAccent}>
+          <div className="stat-row">
+            <span>Claude Available</span>
+            <strong className={claudePill}>{claudeInfo.label}</strong>
+          </div>
+          <p className="muted">{claudeInfo.detail}</p>
+          <p className="muted">Claude is only invoked when explicitly requested.</p>
+        </Card>
 
         <Card title="Recent Signal" accent={theme.accent.blue}>
           <div className="stat-row">

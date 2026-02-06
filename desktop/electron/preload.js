@@ -25,6 +25,10 @@ const api = {
   buildTaskPreview: (naturalLanguage) => safeInvoke('build-task-preview', naturalLanguage, null),
   executeApprovedTask: (taskRequest) =>
     safeInvoke('execute-approved-task', taskRequest, { status: 'rejected', message: 'IPC unavailable.' }),
+  runDryRun: (config) =>
+    safeInvoke('run-dry-run', config, { status: 'rejected', message: 'IPC unavailable.' }),
+  checkClaudeAvailability: () =>
+    safeInvoke('check-claude-availability', undefined, { ok: false, reason: 'ipc_unavailable' }),
   getLiveRunStatus: () => safeInvoke('get-live-run-status', undefined, null),
   getAuditSummary: () => safeInvoke('get-audit-summary', undefined, null),
   getAuditRuns: (filters) => safeInvoke('get-audit-runs', filters, []),

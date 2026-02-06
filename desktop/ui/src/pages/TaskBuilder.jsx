@@ -26,7 +26,26 @@ function computeMissingInputs(template, values) {
   });
 }
 
-export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
+function explainClaudeAvailability(claudeStatus) {
+  if (!claudeStatus) {
+    return { ok: false, reason: 'Status not yet fetched.' };
+  }
+  if (claudeStatus.ok) {
+    return { ok: true, reason: 'Claude is available.' };
+  }
+  if (claudeStatus.reason === 'missing_api_key') {
+    return { ok: false, reason: 'Missing API key.' };
+  }
+  if (claudeStatus.reason === 'engagement_disabled') {
+    return { ok: false, reason: 'Provider disabled.' };
+  }
+  if (claudeStatus.reason === 'trigger_not_allowed') {
+    return { ok: false, reason: 'Trigger not allowed.' };
+  }
+  return { ok: false, reason: 'Claude adapter unavailable.' };
+}
+
+export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStatus }) {
   const [input, setInput] = useState('');
   const [preview, setPreview] = useState(null);
   const [formInputs, setFormInputs] = useState({});
@@ -34,14 +53,19 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
   const [runResult, setRunResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [mode, setMode] = useState('standard');
+  const [executionMode, setExecutionMode] = useState('standard');
   const [maxCycles, setMaxCycles] = useState(1);
   const [allowsClaude, setAllowsClaude] = useState(false);
   const [requestedAdvisor, setRequestedAdvisor] = useState('auto');
+  const [dryRunSelected, setDryRunSelected] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState(null);
+  const [dryRunRunning, setDryRunRunning] = useState(false);
   const [frozenStatus, setFrozenStatus] = useState(null);
 
   const onPreview = async () => {
     setMessage('');
     setRunResult(null);
+    setDryRunResult(null);
     setFrozenStatus(null);
     const result = await api.buildTaskPreview(input);
     setPreview(result);
@@ -56,6 +80,20 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
     } else {
       setAllowsClaude(false);
     }
+  };
+
+  const onDryRun = async () => {
+    setMessage('');
+    setDryRunSelected(true);
+    setDryRunRunning(true);
+    setDryRunResult(null);
+    const result = await api.runDryRun({
+      requestedAdvisor,
+      mode,
+      headless: executionMode === 'headless',
+    });
+    setDryRunRunning(false);
+    setDryRunResult(result);
   };
 
   const onApprove = async () => {
@@ -121,7 +159,16 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
   };
 
   const missingInputs = computeMissingInputs(preview?.template, formInputs);
-  const approveDisabled = missingInputs.length > 0 || !preview?.template || running;
+  const claudeAvailability = explainClaudeAvailability(claudeStatus);
+  const claudeBlocked = requestedAdvisor === 'claude' && !claudeAvailability.ok;
+  const headlessSelected = executionMode === 'headless';
+  const approveDisabled =
+    missingInputs.length > 0 ||
+    !preview?.template ||
+    running ||
+    dryRunSelected ||
+    headlessSelected ||
+    claudeBlocked;
 
   const hasTemplate = Boolean(preview?.template);
   const readiness = missingInputs.length > 0 ? 'missing' : hasTemplate ? 'ready' : 'blocked';
@@ -146,6 +193,15 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
     rejected: theme.accent.red,
   };
   const liveAccent = liveDisplay ? statusAccentMap[liveDisplay.status] || theme.accent.blue : theme.accent.blue;
+  const dryRunStatus =
+    dryRunResult && dryRunResult.status === 'dry_run_ok'
+      ? 'ready'
+      : dryRunResult && dryRunResult.status === 'rejected'
+      ? 'blocked'
+      : null;
+  const dryRunAccent =
+    dryRunStatus === 'ready' ? theme.accent.green : dryRunStatus === 'blocked' ? theme.accent.red : theme.accent.blue;
+  const dryRunLabel = dryRunRunning ? 'Running...' : 'Dry-Run Check';
 
   return (
     <section className="page">
@@ -167,8 +223,22 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
           <button className="primary primary-approve" type="button" onClick={onApprove} disabled={approveDisabled}>
             {approvalLabel}
           </button>
+          <button className="ghost-button" type="button" onClick={onDryRun} disabled={dryRunRunning}>
+            {dryRunLabel}
+          </button>
         </div>
         {message && <p className="muted">{message}</p>}
+        {claudeBlocked ? (
+          <p className="muted">
+            Claude was requested but is unavailable. {claudeAvailability.reason} Run a dry-run or configure provider.
+          </p>
+        ) : null}
+        {headlessSelected ? (
+          <p className="muted">Headless runs must be started via CLI. UI execution is disabled.</p>
+        ) : null}
+        {dryRunSelected ? (
+          <p className="muted">Dry-run selected. Use Dry-Run Check to validate without execution.</p>
+        ) : null}
       </Card>
 
       <div className="grid">
@@ -220,28 +290,13 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
           <div className="divider" />
           <div className="preview-inputs">
             <label className="input-row">
-              <span>Mode</span>
-              <select value={mode} onChange={(event) => setMode(event.target.value)}>
-                <option value="standard">standard</option>
-                <option value="budget">budget</option>
-                <option value="diagnostic">diagnostic</option>
-              </select>
-            </label>
-            <label className="input-row">
-              <span>Advisor</span>
-              <select value={requestedAdvisor} onChange={(event) => setRequestedAdvisor(event.target.value)}>
-                <option value="auto">auto</option>
-                <option value="none">none</option>
-                <option value="claude">claude</option>
-              </select>
-            </label>
-            <label className="input-row">
               <span>Max Cycles</span>
               <input
                 type="number"
                 min={1}
                 max={preview?.template?.maxCycles || 1}
                 value={maxCycles}
+                disabled={headlessSelected}
                 onChange={(event) => {
                   const nextValue = Number(event.target.value) || 1;
                   const maxAllowed = preview?.template?.maxCycles || 1;
@@ -259,10 +314,61 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
               />
             </label>
           </div>
+        </Card>
+
+        <Card title="Run Configuration" accent={theme.accent.purple}>
+          <div className="preview-inputs">
+            <label className="input-row">
+              <span>Advisor</span>
+              <select value={requestedAdvisor} onChange={(event) => setRequestedAdvisor(event.target.value)}>
+                <option value="auto">auto</option>
+                <option value="none">none</option>
+                <option value="claude">claude</option>
+              </select>
+            </label>
+            <label className="input-row">
+              <span>Execution Mode</span>
+              <select value={executionMode} onChange={(event) => setExecutionMode(event.target.value)}>
+                <option value="standard">standard</option>
+                <option value="headless">headless</option>
+              </select>
+            </label>
+            <label className="input-row">
+              <span>Routing Mode</span>
+              <select value={mode} onChange={(event) => setMode(event.target.value)}>
+                <option value="standard">standard</option>
+                <option value="budget">budget</option>
+                <option value="diagnostic">diagnostic</option>
+              </select>
+            </label>
+            <label className="input-row">
+              <span>Dry-run only</span>
+              <input
+                type="checkbox"
+                checked={dryRunSelected}
+                onChange={(event) => setDryRunSelected(event.target.checked)}
+              />
+            </label>
+          </div>
           {requestedAdvisor === 'claude' ? (
             <p className="muted">
               Claude advisor selected. This will invoke the Anthropic API and requires a valid key.
             </p>
+          ) : null}
+          {headlessSelected ? (
+            <div className="warning-pill">Headless runs continue without UI supervision.</div>
+          ) : null}
+          {headlessSelected ? (
+            <div className="stat-row">
+              <span>Max Cycles</span>
+              <strong>{preview?.template?.maxCycles ?? 'n/a'}</strong>
+            </div>
+          ) : null}
+          {headlessSelected ? (
+            <div className="stat-row">
+              <span>Poll Interval</span>
+              <strong>5s</strong>
+            </div>
           ) : null}
         </Card>
 
@@ -288,6 +394,32 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
             </div>
           ) : (
             <p className="muted">No execution yet.</p>
+          )}
+        </Card>
+
+        <Card title="Dry-Run Result" accent={dryRunAccent}>
+          {dryRunResult ? (
+            <div className="preview">
+              <div className="stat-row">
+                <span>Status</span>
+                <strong>{dryRunStatus === 'ready' ? 'Ready to run' : 'Blocked'}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Advisor</span>
+                <strong>{requestedAdvisor}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Claude Available</span>
+                <strong>{dryRunResult.claudeAvailable ? 'yes' : 'no'}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Message</span>
+                <strong>{dryRunResult.message || 'Dry run complete.'}</strong>
+              </div>
+              <p className="muted">Nothing executed. This is a preflight check only.</p>
+            </div>
+          ) : (
+            <p className="muted">Run a dry-run check to validate readiness.</p>
           )}
         </Card>
 

@@ -15,6 +15,20 @@ function statusPillClass(status) {
   return 'status-pill status-pill--error';
 }
 
+function renderTags(run) {
+  const tags = [];
+  if (run && run.dryRun) {
+    tags.push({ id: 'dry-run', label: 'Dry-Run', className: 'status-pill status-pill--info' });
+  }
+  if (run && run.headlessIntent) {
+    tags.push({ id: 'headless', label: 'Headless', className: 'status-pill status-pill--warning' });
+  }
+  if (run && run.advisorRequested === 'claude') {
+    tags.push({ id: 'claude', label: 'Claude-Required', className: 'status-pill status-pill--info' });
+  }
+  return tags;
+}
+
 export default function Audit({ api }) {
   const [summary, setSummary] = useState(null);
   const [runs, setRuns] = useState([]);
@@ -105,6 +119,13 @@ export default function Audit({ api }) {
                 <div className="audit-row-body">
                   <strong>{run.templateId}</strong>
                   <span className="muted">{run.timestamp}</span>
+                  <div className="tag-row">
+                    {renderTags(run).map((tag) => (
+                      <span key={tag.id} className={tag.className}>
+                        {tag.label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <span className={statusPillClass(run.status)}>{run.status}</span>
               </button>
@@ -134,6 +155,18 @@ export default function Audit({ api }) {
               <div className="stat-row">
                 <span>Mode</span>
                 <strong>{activeRun.mode}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Advisor</span>
+                <strong>{activeRun.advisorRequested || 'auto'}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Headless</span>
+                <strong>{activeRun.headlessIntent ? 'true' : 'false'}</strong>
+              </div>
+              <div className="stat-row">
+                <span>Dry Run</span>
+                <strong>{activeRun.dryRun ? 'true' : 'false'}</strong>
               </div>
 
               <div className="divider" />
