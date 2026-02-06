@@ -194,9 +194,19 @@ function runClaude(task, context) {
             confidence: adapterResult.confidence,
           };
         }
+        if (ctx.forceClaudeAdapter) {
+          return {
+            status: 'unresolved',
+            diagnosis: adapterResult && adapterResult.diagnosis ? adapterResult.diagnosis : 'Claude adapter failed.',
+            proposedFix: null,
+          };
+        }
       } catch {
         // Fall back to local diagnostic.
       }
+    }
+    if (ctx.forceClaudeAdapter) {
+      return { status: 'unresolved', diagnosis: 'Claude adapter failed.', proposedFix: null };
     }
   }
 

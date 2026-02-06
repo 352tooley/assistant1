@@ -147,14 +147,23 @@ async function runClaudeAdapter({ trigger, failureContext, repoContext, constrai
 }
 Context:\n${JSON.stringify(payload)}`;
 
-  const response = await sendAnthropicMessage({
-    apiKey: anthropic.apiKey,
-    model,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userMessage }],
-    maxTokens,
-    temperature,
-  });
+  let response;
+  if (process.env.CLAUDE_ADAPTER_MOCK_RESPONSE) {
+    response = {
+      ok: true,
+      contentText: process.env.CLAUDE_ADAPTER_MOCK_RESPONSE,
+      usage: null,
+    };
+  } else {
+    response = await sendAnthropicMessage({
+      apiKey: anthropic.apiKey,
+      model,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+      maxTokens,
+      temperature,
+    });
+  }
 
   if (!response.ok) {
     return { status: 'failure', diagnosis: 'Anthropic API error.', proposedFixPacket: null };
@@ -195,6 +204,23 @@ Context:\n${JSON.stringify(payload)}`;
   };
 }
 
+function isClaudeCallable(trigger) {
+  const config = loadProviderConfig();
+  const anthropic = config.providers && config.providers.anthropic ? config.providers.anthropic : null;
+  const engagementEnabled = claudeEngagement.enabled || (anthropic && anthropic.enabled === true);
+  if (!engagementEnabled) {
+    return { ok: false, reason: 'engagement_disabled' };
+  }
+  if (trigger && !claudeEngagement.escalationTriggers.includes(trigger)) {
+    return { ok: false, reason: 'trigger_not_allowed' };
+  }
+  if (!anthropic || !anthropic.apiKey) {
+    return { ok: false, reason: 'missing_api_key' };
+  }
+  return { ok: true };
+}
+
 module.exports = {
   runClaudeAdapter,
+  isClaudeCallable,
 };

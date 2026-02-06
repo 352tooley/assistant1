@@ -9,6 +9,7 @@ const { validateFixPacket } = require('./fixPacketValidator');
 const { normalizeMode, chooseProvider } = require('./routingPolicy');
 const { claude: claudeEngagement } = require('./agentEngagement');
 const { packageClaudeContext } = require('./claudeContextPackager');
+const { isClaudeCallable } = require('./agents/claudeAdapter');
 const { planTask } = require('./advisors/planner');
 const { critiquePlan } = require('./advisors/critic');
 const { resolvePriority } = require('./advisors/ceo');
@@ -1294,6 +1295,8 @@ function runApprovedTask(taskRequest, meta = {}) {
     phases.push({ phase, message, at: new Date().toISOString() });
   };
 
+  const requestedAdvisor = taskRequest && taskRequest.requestedAdvisor ? taskRequest.requestedAdvisor : 'auto';
+
   currentRunStatus = createRunStatus({
     runId,
     status: 'starting',
@@ -1359,6 +1362,7 @@ function runApprovedTask(taskRequest, meta = {}) {
   }
 
   const template = validation.template;
+  const state = loadState().state || null;
   addPhase('Validating', 'Template validated and inputs accepted.');
   currentRunStatus = updateRunStatus(currentRunStatus, {
     status: 'running',
@@ -1366,6 +1370,62 @@ function runApprovedTask(taskRequest, meta = {}) {
     message: `Executing template ${template.id}.`,
   });
   addPhase('Executing', `Executing template ${template.id}.`);
+
+  if (requestedAdvisor === 'claude') {
+    const availability = isClaudeCallable('user_requested');
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Claude invocation',
+      '- reason: user_requested',
+      '- adapter: anthropic_api',
+      `- result: ${availability.ok ? 'attempted' : 'adapter_unavailable'}`,
+    ]);
+    if (!availability.ok) {
+      throw new Error(
+        'Claude assistance was explicitly requested, but no callable Claude adapter is available.'
+      );
+    }
+
+    const claudeContext = packageClaudeContext({
+      trigger: 'user_requested',
+      failureContext: {
+        error: 'user_requested',
+        classification: 'complex',
+        failureCount: 1,
+        codexOutputs: [],
+      },
+      recentCommits: {
+        lastSuccessfulCommit: state ? state.lastSuccessfulCommit : null,
+        currentCommit: getCurrentCommit(),
+      },
+      constraints: {
+        allowedPaths: ['src/', 'docs/'],
+        maxFiles: 2,
+      },
+    });
+
+    const claudeResult = runClaude(
+      { id: 'user-request', type: 'text_transform', input: { text: 'user', mode: 'upper' } },
+      { ...claudeContext, forceClaudeAdapter: true }
+    );
+
+    appendLoopLog([
+      '',
+      `## ${timestamp}`,
+      '- Event: Claude invocation',
+      '- reason: user_requested',
+      '- adapter: anthropic_api',
+      `- result: ${claudeResult.status}`,
+    ]);
+
+    return buildTaskRunResult({
+      status: claudeResult.status === 'resolved' ? 'success' : 'failure',
+      message: claudeResult.diagnosis || 'Claude response received.',
+      outputSummary: claudeResult.proposedFix ? claudeResult.proposedFix.description : 'no_fix',
+      logHint: { lastEntries: 1, lastTimestamp: timestamp },
+    });
+  }
 
   const internalTask = buildInternalTaskFromTemplate(template, taskRequest.inputs);
   const limits = taskRequest.limits || {};

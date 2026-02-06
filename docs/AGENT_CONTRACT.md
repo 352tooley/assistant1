@@ -35,6 +35,10 @@
 - Claude is never allowed to discover files.
 - Codex selects relevant files deterministically and supplies explicit scope.
 
+## User-Requested Claude
+- User-requested Claude invocation is authoritative.
+- The system must not bypass or simulate Claude when explicitly requested.
+
 ## Stop Conditions
 - All acceptance criteria are met and validated.
 - Any gate fails or an escalation condition is triggered.

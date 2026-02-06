@@ -78,6 +78,11 @@ function validateTaskRequest(taskRequest) {
     return { ok: false, reason: 'templateId not found.' };
   }
 
+  const advisor = taskRequest.requestedAdvisor || 'auto';
+  if (!['auto', 'none', 'claude'].includes(advisor)) {
+    return { ok: false, reason: 'requestedAdvisor must be auto, none, or claude.' };
+  }
+
   if (String(taskRequest.requestedAgentRole || '') !== String(template.agentRole || '')) {
     return { ok: false, reason: 'requestedAgentRole mismatch.' };
   }

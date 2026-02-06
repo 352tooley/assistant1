@@ -36,6 +36,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
   const [mode, setMode] = useState('standard');
   const [maxCycles, setMaxCycles] = useState(1);
   const [allowsClaude, setAllowsClaude] = useState(false);
+  const [requestedAdvisor, setRequestedAdvisor] = useState('auto');
   const [frozenStatus, setFrozenStatus] = useState(null);
 
   const onPreview = async () => {
@@ -73,6 +74,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
       templateId: preview.template.id,
       inputs: formInputs,
       requestedAgentRole: preview.template.agentRole,
+      requestedAdvisor,
       mode,
       limits: {
         maxCycles: Math.min(Number(maxCycles) || 1, preview.template.maxCycles),
@@ -226,6 +228,14 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
               </select>
             </label>
             <label className="input-row">
+              <span>Advisor</span>
+              <select value={requestedAdvisor} onChange={(event) => setRequestedAdvisor(event.target.value)}>
+                <option value="auto">auto</option>
+                <option value="none">none</option>
+                <option value="claude">claude</option>
+              </select>
+            </label>
+            <label className="input-row">
               <span>Max Cycles</span>
               <input
                 type="number"
@@ -249,6 +259,11 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus }) {
               />
             </label>
           </div>
+          {requestedAdvisor === 'claude' ? (
+            <p className="muted">
+              Claude advisor selected. This will invoke the Anthropic API and requires a valid key.
+            </p>
+          ) : null}
         </Card>
 
         <Card title="Execution Status" accent={runResult?.status === 'success' ? theme.accent.green : theme.accent.blue}>

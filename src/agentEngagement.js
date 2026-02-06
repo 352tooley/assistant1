@@ -2,6 +2,7 @@ module.exports = {
   claude: {
     enabled: false,
     escalationTriggers: [
+      'user_requested',
       'renderer_black_screen',
       'electron_lifecycle_exit',
       'cross_commit_regression',
