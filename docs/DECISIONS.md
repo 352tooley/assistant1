@@ -24,3 +24,12 @@
 - Rationale: Provides a deterministic local loop without external calls.
 - Decision: Orchestrator appends a cycle entry to `docs/LOOP_LOG.md` at runtime.
 - Rationale: Satisfies loop logging requirement while keeping edits controlled.
+
+## 2026-02-06: Agent Routing and Escalation
+
+- Decision: Model Codex and Claude as distinct synchronous agent stubs with deterministic routing.
+- Rationale: Enables clear control flow without integrating external APIs.
+- Decision: Classify first failures as simple and repeated failures as complex to trigger escalation.
+- Rationale: Keeps escalation deterministic and easy to verify.
+- Decision: Claude remains a stub that always succeeds while real integrations are deferred.
+- Rationale: Separates routing logic from future model integration work.
