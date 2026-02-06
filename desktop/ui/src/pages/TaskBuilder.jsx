@@ -521,7 +521,7 @@ export default function TaskBuilder({ api, onRunComplete, liveStatus, claudeStat
           ) : null}
         </Card>
 
-        <Card title="Execution Status" accent={runResult?.status === 'success' ? theme.accent.green : theme.accent.blue}>
+        <Card title="Execution Status" accent={runResult?.status === 'success' ? theme.accent.green : theme.accent.blue} className="hero-card">
           {runResult ? (
             <div className="preview">
               <div className="stat-row">
