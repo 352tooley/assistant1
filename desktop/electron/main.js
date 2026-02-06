@@ -30,9 +30,23 @@ function resolveOrchestrator() {
 
 let mainWindow;
 
+// App-level listeners — registered once, outside createWindow to prevent leak.
+app.on('render-process-gone', (_event, webContents, details) => {
+  console.error('❌ Render process gone:', details);
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents === webContents) {
+    console.error('❌ Reloading renderer after crash.');
+    mainWindow.webContents.reload();
+  }
+});
+
+app.on('child-process-gone', (_event, details) => {
+  console.error('❌ Child process gone:', details);
+});
+
 function createWindow() {
   try {
     mainWindow = new BrowserWindow({
+      show: false,
       width: 1200,
       height: 800,
       backgroundColor: '#0B1020',
@@ -44,6 +58,10 @@ function createWindow() {
     });
 
     const devUrl = process.env.VITE_DEV_SERVER_URL;
+
+    mainWindow.once('ready-to-show', () => {
+      mainWindow.show();
+    });
 
     if (devUrl) {
       console.log('Loading Vite dev server:', devUrl);
@@ -64,8 +82,11 @@ function createWindow() {
       }
     });
 
-    mainWindow.on('close', () => {
-      console.error('❌ BrowserWindow close event fired');
+    mainWindow.on('close', (event) => {
+      if (!isQuitting) {
+        event.preventDefault();
+        console.error('❌ BrowserWindow close blocked — use Cmd+Q / Ctrl+Q to quit.');
+      }
     });
 
     mainWindow.webContents.on('did-finish-load', () => {
@@ -74,14 +95,6 @@ function createWindow() {
 
     mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
       console.error('❌ Renderer failed to load:', errorCode, errorDescription);
-    });
-
-    app.on('render-process-gone', (_event, details) => {
-      console.error('❌ Render process gone:', details);
-    });
-
-    app.on('child-process-gone', (_event, details) => {
-      console.error('❌ Child process gone:', details);
     });
 
     mainWindow.on('unresponsive', () => {
