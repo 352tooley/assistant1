@@ -151,64 +151,6 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('get-agents', async () => {
-    return [
-      { id: 'codex', name: 'Codex', role: 'Implementer', status: 'active' },
-      { id: 'claude', name: 'Claude', role: 'Diagnostician', status: 'standby' },
-      { id: 'planner', name: 'Planner', role: 'Advisor', status: 'advisory' },
-    ];
-  });
-
-  ipcMain.handle('build-task-preview', async (_event, naturalLanguage) => {
-    try {
-      const { resolveTemplate } = require(path.join(repoRoot, 'src', 'templateResolver.js'));
-      const result = resolveTemplate(naturalLanguage || '');
-      return {
-        template: result.template,
-        confidence: result.confidence,
-        extractedInputs: result.extractedInputs,
-        missingInputs: result.missingInputs,
-      };
-    } catch (error) {
-      return { error: String(error) };
-    }
-  });
-
-  ipcMain.handle('execute-approved-task', async (_event, taskRequest) => {
-    try {
-      const { runApprovedTask } = resolveOrchestrator();
-      return runApprovedTask(taskRequest, { cliCommand: 'desktop:approve', operatorIntent: 'approveAndRun' });
-    } catch (error) {
-      return { status: 'rejected', message: String(error) };
-    }
-  });
-
-  ipcMain.handle('run-dry-run', async (_event, config) => {
-    try {
-      const { runOnce, runHeadless } = resolveOrchestrator();
-      const options = {
-        reset: false,
-        maxTasks: 1,
-        mode: config && config.mode ? config.mode : 'standard',
-        requestedAdvisor: config && config.requestedAdvisor ? config.requestedAdvisor : 'auto',
-        preferredProvider: config && config.preferredProvider ? config.preferredProvider : '',
-        preferredRole: config && config.preferredRole ? config.preferredRole : '',
-        preferredModel: config && config.preferredModel ? config.preferredModel : '',
-        templateId: config && config.templateId ? config.templateId : '',
-        dryRun: true,
-        pollIntervalMs: 5000,
-        maxCycles: 1,
-        maxRuntimeMs: 1000,
-      };
-      if (config && config.headless) {
-        return runHeadless({ ...options, headless: true }, { cliCommand: 'desktop:dry-run', operatorIntent: 'dry-run' });
-      }
-      return runOnce(options, { headlessMode: false, cliCommand: 'desktop:dry-run', operatorIntent: 'dry-run' });
-    } catch (error) {
-      return { status: 'rejected', message: String(error) };
-    }
-  });
-
   ipcMain.handle('check-claude-availability', async () => {
     try {
       const { isClaudeCallable } = require(path.join(repoRoot, 'src', 'agents', 'claudeAdapter.js'));
@@ -272,12 +214,59 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle('get-agents', async () => {
+    return [
+      { id: 'codex', name: 'Codex', role: 'Implementer', status: 'active' },
+      { id: 'claude', name: 'Claude', role: 'Diagnostician', status: 'standby' },
+      { id: 'planner', name: 'Planner', role: 'Advisor', status: 'advisory' },
+    ];
+  });
+
+  ipcMain.handle('build-task-preview', async (_event, naturalLanguage) => {
+    try {
+      const { resolveTemplate } = require(path.join(repoRoot, 'src', 'templateResolver.js'));
+      const result = resolveTemplate(naturalLanguage || '');
+      return {
+        template: result.template,
+        confidence: result.confidence,
+        extractedInputs: result.extractedInputs,
+        missingInputs: result.missingInputs,
+      };
+    } catch (error) {
+      return { error: String(error) };
+    }
+  });
+
+  ipcMain.handle('execute-approved-task', async (_event, taskRequest) => {
+    try {
+      const { runApprovedTask } = resolveOrchestrator();
+      return runApprovedTask(taskRequest, { cliCommand: 'desktop:approve', operatorIntent: 'approveAndRun' });
+    } catch (error) {
+      return { status: 'rejected', message: String(error) };
+    }
+  });
+
+  ipcMain.handle('run-dry-run', async (_event, payload) => {
+    try {
+      const { runOnce } = resolveOrchestrator();
+      return runOnce(
+        {
+          ...(payload || {}),
+          dryRun: true,
+          maxCycles: (payload && payload.maxCycles) || 1,
+          maxRuntimeMs: (payload && payload.maxRuntimeMs) || 120000,
+        },
+        { headlessMode: Boolean(payload && payload.headless), cliCommand: 'desktop:dryRun', operatorIntent: 'dryRun' }
+      );
+    } catch (error) {
+      return { status: 'rejected', message: String(error) };
+    }
+  });
+
   ipcMain.handle('request-stop', async () => {
     try {
-      const fs = require('fs');
-      const stopPath = path.join(repoRoot, 'state', 'STOP');
-      fs.mkdirSync(path.join(repoRoot, 'state'), { recursive: true });
-      fs.writeFileSync(stopPath, 'stop-requested-from-desktop');
+      const stopFlagPath = path.join(repoRoot, 'state', 'STOP');
+      fs.writeFileSync(stopFlagPath, 'stop', 'utf8');
       return { ok: true };
     } catch (error) {
       return { ok: false, reason: String(error) };
