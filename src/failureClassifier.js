@@ -1,15 +1,15 @@
 const failureCounts = new Map();
 
-function classifyFailure(failure, taskId) {
+function classifyFailure(failure, taskId, currentCount) {
   const previous = failureCounts.get(taskId) || 0;
-  const current = previous + 1;
-  failureCounts.set(taskId, current);
+  const nextCount = typeof currentCount === 'number' ? currentCount : previous + 1;
+  failureCounts.set(taskId, nextCount);
 
-  const classification = current >= 2 ? 'complex' : 'simple';
+  const classification = nextCount >= 2 ? 'complex' : 'simple';
 
   return {
     classification,
-    count: current,
+    count: nextCount,
     taskId,
     message: failure && failure.message ? failure.message : 'Unknown failure',
   };

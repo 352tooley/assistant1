@@ -52,6 +52,17 @@
 - Decision: Allow only one healing attempt per escalation, then stop.
 - Rationale: Avoids infinite loops and preserves deterministic termination.
 
+## 2026-02-06: Persistent Runtime State
+
+- Decision: Use file-based state in `state/runtime.json` to persist task queue, failure counts, and healing attempts.
+- Rationale: Keeps persistence simple, deterministic, and human-readable without external dependencies.
+- Decision: Avoid databases and networked storage.
+- Rationale: Preserves offline, single-process determinism.
+- Decision: Require explicit manual reset via `--reset`.
+- Rationale: Prevents accidental loss of audit history and ensures operator control.
+- Decision: Keep persisted data bounded to task queue and per-task counters.
+- Rationale: Avoids unbounded growth while preserving necessary history.
+
 ## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
 
 - Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.
