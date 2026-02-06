@@ -38,6 +38,13 @@ Operators can register local AI providers and assign roles without moving execut
 3. Assign roles and projects.
 4. Credentials are stored locally in `providers/providers.local.json` (gitignored).
 
+Supported provider types include OpenAI (Codex), Anthropic (Claude), and xAI (Grok). OpenAI and xAI use API keys; OAuth is a placeholder for provider-specific flows.
+
+For Grok, the xAI API is OpenAI-compatible and uses the base URL shown below:
+```text
+https://api.x.ai/v1
+```
+
 ### Validate
 Use **Dry-Run Check** in Task Builder to validate provider + role readiness before execution.
 

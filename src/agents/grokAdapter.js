@@ -1,0 +1,97 @@
+const { sendXAIResponse } = require('../providers/xaiClient');
+const { redactSecrets } = require('../redaction');
+const registry = require('../providerRegistry');
+const { loadProviderStore } = require('../providerManager');
+
+function buildPrompt(task) {
+  if (task.type === 'open_ended_idea') {
+    return [
+      'You are Grok acting as a planning assistant.',
+      'Ask clarifying questions to plan this task from start to finish.',
+      'Return a numbered list of 5-8 questions.',
+      `Idea: ${task.input.idea}`,
+    ].join('\n');
+  }
+  if (task.type === 'open_ended_plan') {
+    return [
+      'You are Grok acting as a planning assistant.',
+      'Produce a step-by-step plan from start to finish.',
+      'Return a concise, numbered plan with assumptions and risks.',
+      `Idea: ${task.input.idea}`,
+      `Answers: ${task.input.answers}`,
+    ].join('\n');
+  }
+  return `Unsupported task type: ${task.type}`;
+}
+
+function resolveProviderConfig(providerName, preferredModel) {
+  const store = loadProviderStore();
+  const provider = store.providers && providerName ? store.providers[providerName] : null;
+  if (!provider || provider.type !== 'xai') {
+    return { ok: false, reason: 'xAI provider not configured.' };
+  }
+  if (!provider.enabled) {
+    return { ok: false, reason: 'xAI provider disabled.' };
+  }
+  const apiKey = provider.auth && provider.auth.apiKey ? provider.auth.apiKey : null;
+  if (!apiKey) {
+    return { ok: false, reason: 'xAI API key missing.' };
+  }
+  const models = registry.xai.models || [];
+  const model = preferredModel && models.includes(preferredModel) ? preferredModel : models[0];
+  if (!model) {
+    return { ok: false, reason: 'No xAI model configured.' };
+  }
+  return { ok: true, apiKey, model };
+}
+
+async function runGrokAdapter(payload) {
+  const task = payload.task;
+  const providerName = payload.providerName || '';
+  const preferredModel = payload.preferredModel || '';
+
+  const config = resolveProviderConfig(providerName, preferredModel);
+  if (!config.ok) {
+    return { status: 'failure', error: config.reason };
+  }
+
+  const prompt = buildPrompt(task);
+  if (prompt.startsWith('Unsupported')) {
+    return { status: 'failure', error: prompt };
+  }
+
+  const redactedPrompt = redactSecrets(prompt);
+  const response = await sendXAIResponse({
+    apiKey: config.apiKey,
+    model: config.model,
+    input: redactedPrompt,
+    maxOutputTokens: 800,
+    temperature: 0.2,
+  });
+
+  if (!response.ok) {
+    return { status: 'failure', error: 'xAI API error.' };
+  }
+
+  return { status: 'success', output: response.text };
+}
+
+async function main() {
+  try {
+    const raw = process.env.GROK_ADAPTER_PAYLOAD || '';
+    if (!raw) {
+      throw new Error('Missing GROK_ADAPTER_PAYLOAD.');
+    }
+    const payload = JSON.parse(raw);
+    const result = await runGrokAdapter(payload);
+    process.stdout.write(JSON.stringify(result));
+  } catch (err) {
+    process.stdout.write(JSON.stringify({ status: 'failure', error: String(err.message || err) }));
+  }
+}
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = { runGrokAdapter };

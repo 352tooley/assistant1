@@ -11,6 +11,12 @@ module.exports = {
     roles: ['claude', 'reviewer'],
     models: ['claude-3-5-sonnet-20240620'],
   },
+  xai: {
+    label: 'xAI (Grok)',
+    auth: ['apiKey'],
+    roles: ['auto', 'coder', 'planner', 'reviewer'],
+    models: ['grok-4', 'grok-4-latest', 'grok-4-0709'],
+  },
   custom: {
     label: 'Custom / Local AI',
     auth: ['apiKey', 'oauth'],

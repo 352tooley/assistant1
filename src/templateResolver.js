@@ -127,7 +127,13 @@ function resolveTemplate(naturalLanguage) {
   }));
 
   scores.sort((a, b) => b.score - a.score);
-  const best = scores[0];
+  let best = scores[0];
+  if (best.score === 0 && normalizeText(naturalLanguage).length > 0) {
+    const fallback = scores.find((entry) => entry.template && entry.template.id === 'open_ended_idea');
+    if (fallback) {
+      best = { template: fallback.template, score: 0.1 };
+    }
+  }
   const confidence = Math.round(best.score * 100);
   const { extracted, missing } = extractInputs(best.template, naturalLanguage);
 

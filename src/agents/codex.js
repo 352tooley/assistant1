@@ -35,6 +35,14 @@ function runCodex(task) {
 
   if (task.type === 'open_ended_idea' || task.type === 'open_ended_plan') {
     const { spawnSync } = require('child_process');
+    const { loadProviderStore } = require('../providerManager');
+    const store = loadProviderStore();
+    const provider = store.providers && task.providerName ? store.providers[task.providerName] : null;
+    const providerType = provider ? provider.type : null;
+    const adapterPath =
+      providerType === 'xai'
+        ? require.resolve('./grokAdapter.js')
+        : require.resolve('./openaiAdapter.js');
     const payload = {
       task: {
         type: task.type,
@@ -43,20 +51,24 @@ function runCodex(task) {
       providerName: task.providerName || '',
       preferredModel: task.preferredModel || '',
     };
-    const result = spawnSync(process.execPath, [require.resolve('./openaiAdapter.js')], {
-      env: { ...process.env, OPENAI_ADAPTER_PAYLOAD: JSON.stringify(payload) },
+    const result = spawnSync(process.execPath, [adapterPath], {
+      env: {
+        ...process.env,
+        OPENAI_ADAPTER_PAYLOAD: JSON.stringify(payload),
+        GROK_ADAPTER_PAYLOAD: JSON.stringify(payload),
+      },
       encoding: 'utf8',
     });
     if (result.error || result.status !== 0) {
       return {
         status: 'failure',
-        error: 'OpenAI adapter failed to run.',
+        error: 'LLM adapter failed to run.',
       };
     }
     try {
       const parsed = JSON.parse((result.stdout || '').trim() || '{}');
       if (parsed.status !== 'success') {
-        return { status: 'failure', error: parsed.error || 'OpenAI adapter error.' };
+        return { status: 'failure', error: parsed.error || 'LLM adapter error.' };
       }
       return { status: 'success', output: parsed.output };
     } catch {

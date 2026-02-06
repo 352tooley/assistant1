@@ -76,3 +76,11 @@ test('unsupported model is rejected', () => {
   const result = validateProviderForRun({ preferredProvider: 'myClaude', preferredRole: 'reviewer', preferredModel: 'unknown-model' });
   assert.equal(result.ok, false);
 });
+
+test('xai provider accepts grok-4 model', () => {
+  resetStore();
+  addProvider({ name: 'myGrok', type: 'xai', authMethod: 'apiKey', apiKey: 'sk-test' });
+  assignRoles('myGrok', ['coder']);
+  const result = validateProviderForRun({ preferredProvider: 'myGrok', preferredRole: 'coder', preferredModel: 'grok-4' });
+  assert.equal(result.ok, true);
+});

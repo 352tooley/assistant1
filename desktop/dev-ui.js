@@ -18,33 +18,22 @@ process.on('unhandledRejection', (err) => {
 let win;
 let isQuitting = false;
 
-const repoRoot = path.resolve(__dirname, '..');
-
-function resolveOrchestrator() {
-  return require(path.join(repoRoot, 'src', 'orchestrator.js'));
-}
-
 // ---------------------------------------------------------------------------
-// Register live IPC handlers (same as electron/main.js — real engine calls)
+// Register stub IPC handlers (dev-ui is UI-only)
 // ---------------------------------------------------------------------------
 function registerDevIpc() {
-  ipcMain.handle('get-status', async () => {
-    try {
-      const { getStatusSnapshot } = resolveOrchestrator();
-      return getStatusSnapshot();
-    } catch (error) {
-      return { error: String(error) };
-    }
-  });
+  ipcMain.handle('get-status', async () => ({
+    pending: 0,
+    completed: 0,
+    failed: 0,
+    lastRunTimestamp: null,
+    mode: 'standard',
+    usage: { codexCalls: 0, claudeCalls: 0 },
+    headlessStatus: 'idle',
+    stopFlag: false,
+  }));
 
-  ipcMain.handle('get-live-run-status', async () => {
-    try {
-      const { getCurrentRunStatus } = resolveOrchestrator();
-      return getCurrentRunStatus();
-    } catch (error) {
-      return null;
-    }
-  });
+  ipcMain.handle('get-live-run-status', async () => null);
 
   ipcMain.handle('get-agents', async () => [
     { id: 'codex', name: 'Codex', role: 'Implementer', status: 'active' },
@@ -52,155 +41,73 @@ function registerDevIpc() {
     { id: 'planner', name: 'Planner', role: 'Advisor', status: 'advisory' },
   ]);
 
-  ipcMain.handle('get-audit-summary', async () => {
-    try {
-      const { getAuditSummary } = require(path.join(repoRoot, 'src', 'auditReader.js'));
-      return getAuditSummary();
-    } catch (error) {
-      return { error: String(error) };
-    }
-  });
+  ipcMain.handle('get-audit-summary', async () => ({
+    total: 0,
+    success: 0,
+    failure: 0,
+    rejected: 0,
+    escalations: 0,
+    healings: 0,
+  }));
 
-  ipcMain.handle('get-audit-runs', async (_event, filters) => {
-    try {
-      const { getAuditRuns } = require(path.join(repoRoot, 'src', 'auditReader.js'));
-      return getAuditRuns(filters || {});
-    } catch (error) {
-      return { error: String(error) };
-    }
-  });
+  ipcMain.handle('get-audit-runs', async () => []);
+  ipcMain.handle('get-audit-run', async () => null);
 
-  ipcMain.handle('get-audit-run', async (_event, runId) => {
-    try {
-      const { getAuditRun } = require(path.join(repoRoot, 'src', 'auditReader.js'));
-      return getAuditRun(runId);
-    } catch (error) {
-      return { error: String(error) };
-    }
-  });
+  ipcMain.handle('build-task-preview', async () => ({
+    template: null,
+    confidence: 0,
+    extractedInputs: {},
+    missingInputs: [],
+  }));
 
-  ipcMain.handle('build-task-preview', async (_event, naturalLanguage) => {
-    try {
-      const { resolveTemplate } = require(path.join(repoRoot, 'src', 'templateResolver.js'));
-      const result = resolveTemplate(naturalLanguage || '');
-      return {
-        template: result.template,
-        confidence: result.confidence,
-        extractedInputs: result.extractedInputs,
-        missingInputs: result.missingInputs,
-      };
-    } catch (error) {
-      return { error: String(error) };
-    }
-  });
+  ipcMain.handle('execute-approved-task', async () => ({
+    status: 'rejected', message: 'Engine not available in dev-ui mode.',
+  }));
 
-  ipcMain.handle('execute-approved-task', async (_event, taskRequest) => {
-    try {
-      const { runApprovedTask } = resolveOrchestrator();
-      return runApprovedTask(taskRequest, { cliCommand: 'desktop:approve', operatorIntent: 'approveAndRun' });
-    } catch (error) {
-      return { status: 'rejected', message: String(error) };
-    }
-  });
+  ipcMain.handle('run-dry-run', async () => ({
+    status: 'rejected', message: 'Engine not available in dev-ui mode.',
+  }));
 
-  ipcMain.handle('run-dry-run', async (_event, config) => {
-    try {
-      const { runOnce, runHeadless } = resolveOrchestrator();
-      const options = {
-        reset: false,
-        maxTasks: 1,
-        mode: config && config.mode ? config.mode : 'standard',
-        requestedAdvisor: config && config.requestedAdvisor ? config.requestedAdvisor : 'auto',
-        preferredProvider: config && config.preferredProvider ? config.preferredProvider : '',
-        preferredRole: config && config.preferredRole ? config.preferredRole : '',
-        dryRun: true,
-        pollIntervalMs: 5000,
-        maxCycles: 1,
-        maxRuntimeMs: 1000,
-      };
-      if (config && config.headless) {
-        return runHeadless({ ...options, headless: true }, { cliCommand: 'desktop:dry-run', operatorIntent: 'dry-run' });
-      }
-      return runOnce(options, { headlessMode: false, cliCommand: 'desktop:dry-run', operatorIntent: 'dry-run' });
-    } catch (error) {
-      return { status: 'rejected', message: String(error) };
-    }
-  });
+  ipcMain.handle('check-claude-availability', async () => ({
+    ok: false, reason: 'dev-ui mode',
+  }));
 
-  ipcMain.handle('check-claude-availability', async () => {
-    try {
-      const { isClaudeCallable } = require(path.join(repoRoot, 'src', 'agents', 'claudeAdapter.js'));
-      return isClaudeCallable('user_requested_cli');
-    } catch (error) {
-      return { ok: false, reason: 'error' };
-    }
-  });
+  ipcMain.handle('list-available-providers', async () => ({
+    registry: {
+      openai: {
+        label: 'OpenAI',
+        auth: ['apiKey'],
+        roles: ['auto', 'coder', 'planner'],
+        models: ['gpt-5.1-codex', 'gpt-5.1-codex-mini'],
+      },
+      anthropic: {
+        label: 'Anthropic (Claude)',
+        auth: ['apiKey'],
+        roles: ['claude', 'reviewer'],
+        models: ['claude-3-5-sonnet-20240620'],
+      },
+      xai: {
+        label: 'xAI (Grok)',
+        auth: ['apiKey'],
+        roles: ['auto', 'coder', 'planner', 'reviewer'],
+        models: ['grok-4', 'grok-4-latest', 'grok-4-0709'],
+      },
+      custom: {
+        label: 'Custom / Local AI',
+        auth: ['apiKey', 'oauth'],
+        roles: ['custom'],
+        models: [],
+      },
+    },
+    providers: [],
+  }));
 
-  ipcMain.handle('list-available-providers', async () => {
-    try {
-      const { getAvailableProviders } = require(path.join(repoRoot, 'src', 'providerManager.js'));
-      return getAvailableProviders();
-    } catch (error) {
-      return { registry: {}, providers: [] };
-    }
-  });
+  ipcMain.handle('add-provider', async () => ({ ok: false, reason: 'dev-ui mode' }));
+  ipcMain.handle('enable-provider', async () => ({ ok: false, reason: 'dev-ui mode' }));
+  ipcMain.handle('disable-provider', async () => ({ ok: false, reason: 'dev-ui mode' }));
+  ipcMain.handle('assign-roles', async () => ({ ok: false, reason: 'dev-ui mode' }));
+  ipcMain.handle('assign-projects', async () => ({ ok: false, reason: 'dev-ui mode' }));
 
-  ipcMain.handle('add-provider', async (_event, payload) => {
-    try {
-      const { addProvider } = require(path.join(repoRoot, 'src', 'providerManager.js'));
-      return addProvider(payload || {});
-    } catch (error) {
-      return { ok: false, reason: 'error' };
-    }
-  });
-
-  ipcMain.handle('enable-provider', async (_event, name) => {
-    try {
-      const { enableProvider } = require(path.join(repoRoot, 'src', 'providerManager.js'));
-      return enableProvider(name);
-    } catch (error) {
-      return { ok: false, reason: 'error' };
-    }
-  });
-
-  ipcMain.handle('disable-provider', async (_event, name) => {
-    try {
-      const { disableProvider } = require(path.join(repoRoot, 'src', 'providerManager.js'));
-      return disableProvider(name);
-    } catch (error) {
-      return { ok: false, reason: 'error' };
-    }
-  });
-
-  ipcMain.handle('assign-roles', async (_event, payload) => {
-    try {
-      const { assignRoles } = require(path.join(repoRoot, 'src', 'providerManager.js'));
-      return assignRoles(payload && payload.name, payload && payload.roles);
-    } catch (error) {
-      return { ok: false, reason: 'error' };
-    }
-  });
-
-  ipcMain.handle('assign-projects', async (_event, payload) => {
-    try {
-      const { assignProjects } = require(path.join(repoRoot, 'src', 'providerManager.js'));
-      return assignProjects(payload && payload.name, payload && payload.projects);
-    } catch (error) {
-      return { ok: false, reason: 'error' };
-    }
-  });
-
-  ipcMain.handle('request-stop', async () => {
-    try {
-      const fs = require('fs');
-      const stopPath = path.join(repoRoot, 'state', 'STOP');
-      fs.mkdirSync(path.join(repoRoot, 'state'), { recursive: true });
-      fs.writeFileSync(stopPath, 'stop-requested-from-desktop');
-      return { ok: true };
-    } catch (error) {
-      return { ok: false, reason: String(error) };
-    }
-  });
 }
 
 // App-level crash handler — registered once outside createWindow.
