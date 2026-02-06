@@ -1,0 +1,11 @@
+name: placeholder-ci
+
+steps:
+  - name: install
+    run: echo "install step placeholder"
+  - name: test
+    run: echo "test step placeholder"
+  - name: lint
+    run: echo "lint step placeholder"
+  - name: build
+    run: echo "build step placeholder"
