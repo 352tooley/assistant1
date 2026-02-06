@@ -25,6 +25,21 @@ npm run electron
 npm run smoke
 ```
 
+## UI Development Mode
+
+For rapid UI iteration (visuals, components, layout):
+
+1. Start Vite:
+   npm run dev
+
+2. In another terminal:
+   npm run ui
+
+This launches the Desktop UI only:
+- No engine execution
+- No task orchestration
+- Safe for UI experimentation
+
 ## Logs
 - Engine log: `docs/LOOP_LOG.md`
 
