@@ -1,8 +1,23 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Card from '../components/Card.jsx';
 import theme from '../theme.js';
 
-export default function Activity({ lastRun }) {
+export default function Activity({ lastRun, api }) {
+  const [auditRuns, setAuditRuns] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (api && api.getAuditRuns) {
+      api.getAuditRuns().then((data) => {
+        if (!mounted) return;
+        setAuditRuns(Array.isArray(data) ? data.slice().reverse() : []);
+      });
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [api]);
+
   const activityItems = [
     ...(lastRun
       ? [
@@ -14,9 +29,12 @@ export default function Activity({ lastRun }) {
           },
         ]
       : []),
-    { id: 1, time: 'Today 09:12', action: 'Headless cycle completed', detail: 'Idle detected, sleeping.' },
-    { id: 2, time: 'Today 08:47', action: 'CLI status', detail: 'Operator requested status snapshot.' },
-    { id: 3, time: 'Today 08:30', action: 'Preview generated', detail: 'Task preview created (no execution).' },
+    ...(auditRuns || []).map((run) => ({
+      id: run.runId,
+      time: run.timestamp,
+      action: `Run ${run.status}`,
+      detail: `${run.templateId} (${run.mode})`,
+    })),
   ];
   const resolveAccent = (action) => {
     const lower = String(action || '').toLowerCase();

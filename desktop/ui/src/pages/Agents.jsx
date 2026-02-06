@@ -33,9 +33,6 @@ export default function Agents({ agents }) {
               <span>Authority</span>
               <strong>Advisory / Read-only</strong>
             </div>
-            <button className="ghost-button" type="button">
-              Toggle (UI only)
-            </button>
           </Card>
         ))}
       </div>
