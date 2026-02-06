@@ -7,6 +7,9 @@ const { runClaude } = require('./agents/claude');
 const { classifyFailure } = require('./failureClassifier');
 const { validateFixPacket } = require('./fixPacketValidator');
 const { normalizeMode, chooseProvider } = require('./routingPolicy');
+const { planTask } = require('./advisors/planner');
+const { critiquePlan } = require('./advisors/critic');
+const { resolvePriority } = require('./advisors/ceo');
 const {
   runtimePath,
   loadState,
@@ -154,6 +157,10 @@ function estimateTokens(payload) {
   return Math.max(1, Math.ceil(raw.length / 4));
 }
 
+function summarizeAdvisorOutput(output) {
+  return summarize(output);
+}
+
 function formatExpectedOutput(value) {
   if (typeof value === 'string') {
     const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -236,6 +243,8 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode) {
   let regressionDetected = false;
   let regressionInfo = null;
   const codexAttempts = { count: 0 };
+  let advisorAdvice = null;
+  let advisorDecision = null;
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const providerDecision = chooseProvider({ task, failureInfo: {}, state, mode, phase: 'codex', attemptCounts: { codexAttempts: codexAttempts.count } });
@@ -322,6 +331,31 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode) {
       failureCount: classification.count,
       regressionDetected,
     };
+
+    if (classification.classification === 'complex' || regressionDetected) {
+      const plan = planTask(task, { regressionDetected, regressionInfo });
+      const history = {
+        recentFailures: state.failuresPerCommit[currentCommit] || [],
+        mode,
+      };
+      const critique = critiquePlan(plan, history);
+      const usageSnapshot = getUsageSnapshot(state);
+      const ceoDecision = resolvePriority([plan], mode, usageSnapshot);
+      advisorAdvice = { plan, critique, ceoDecision };
+
+      routingLog.push(`- Advisor invoked: planner`); 
+      routingLog.push(`- Advisor output: ${summarizeAdvisorOutput(plan)}`);
+      routingLog.push(`- Advisor invoked: critic`);
+      routingLog.push(`- Advisor output: ${summarizeAdvisorOutput(critique)}`);
+      routingLog.push(`- Advisor invoked: ceo`);
+      routingLog.push(`- Advisor output: ${summarizeAdvisorOutput(ceoDecision)}`);
+
+      advisorDecision = {
+        accepted: false,
+        reason: 'advisory_only',
+      };
+      routingLog.push(`- Advisor decision: ignored (${advisorDecision.reason})`);
+    }
     const escalationDecision = chooseProvider({
       task,
       failureInfo,

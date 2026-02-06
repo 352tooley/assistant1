@@ -96,6 +96,15 @@
 - Decision: Use file-based stop flag in `state/STOP`.
 - Rationale: Provides an explicit operator-controlled stop signal.
 
+## 2026-02-06: Advisory Specialization (Planner / Critic / CEO)
+
+- Decision: Add advisor modules that produce structured, non-binding guidance.
+- Rationale: Improves reasoning quality without expanding execution authority.
+- Decision: Keep advisors separate from executors and routing logic.
+- Rationale: Preserves deterministic control and auditability.
+- Decision: Do not reuse Claude for planning or critique.
+- Rationale: Maintains Claude as escalation-only diagnostics and avoids scope creep.
+
 ## 2026-02-06: Claude Real Escalation Diagnostics (Cycle 4)
 
 - Decision: Claude is invoked only on escalation (complex or repeated failures). It never self-directs.
