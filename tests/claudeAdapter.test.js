@@ -74,7 +74,13 @@ test('claudeAdapter success path parses valid JSON', async () => {
     trigger: 'repeated_deterministic_failure',
     failureContext: { error: 'sk-ant-REDACT', classification: 'complex', failureCount: 2 },
     repoContext: null,
-    constraints: null,
+    constraints: {
+      scope: {
+        allowedFiles: [{ path: 'src/orchestrator.js', reason: 'test' }],
+        forbiddenPatterns: ['desktop/**'],
+        maxFiles: 2,
+      },
+    },
   });
 
   assert.equal(result.status, 'success');
@@ -112,5 +118,50 @@ test('claudeAdapter disabled provider returns failure', async () => {
     constraints: null,
   });
   assert.equal(result.status, 'failure');
+  cleanupProviderConfig();
+});
+
+test('claudeAdapter rejects out-of-scope fix', async () => {
+  const originalFetch = global.fetch;
+  writeProviderConfig(true);
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            diagnosis: 'Needs UI change',
+            rootCause: 'Out of scope',
+            confidence: 'low',
+            proposedFix: {
+              kind: 'fixPacket',
+              packet: {
+                reason: 'Change UI',
+                changes: [{ path: 'desktop/ui/src/App.jsx', op: 'replace', content: 'x' }],
+              },
+            },
+          }),
+        },
+      ],
+    }),
+  });
+
+  const result = await runClaudeAdapter({
+    trigger: 'repeated_deterministic_failure',
+    failureContext: { error: 'fail', classification: 'complex', failureCount: 2 },
+    repoContext: null,
+    constraints: {
+      scope: {
+        allowedFiles: [{ path: 'src/orchestrator.js', reason: 'test' }],
+        forbiddenPatterns: ['desktop/**'],
+        maxFiles: 2,
+      },
+    },
+  });
+
+  assert.equal(result.status, 'failure');
+  assert.equal(result.error, 'claude_fix_rejected_out_of_scope');
+  global.fetch = originalFetch;
   cleanupProviderConfig();
 });

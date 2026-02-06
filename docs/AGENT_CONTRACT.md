@@ -31,6 +31,10 @@
 - Requires user-provided Anthropic key in `providers.local.json`.
 - No secrets are logged or written to disk.
 
+## File Relevance Ownership
+- Claude is never allowed to discover files.
+- Codex selects relevant files deterministically and supplies explicit scope.
+
 ## Stop Conditions
 - All acceptance criteria are met and validated.
 - Any gate fails or an escalation condition is triggered.

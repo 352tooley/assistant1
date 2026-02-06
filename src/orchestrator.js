@@ -8,6 +8,7 @@ const { classifyFailure } = require('./failureClassifier');
 const { validateFixPacket } = require('./fixPacketValidator');
 const { normalizeMode, chooseProvider } = require('./routingPolicy');
 const { claude: claudeEngagement } = require('./agentEngagement');
+const { packageClaudeContext } = require('./claudeContextPackager');
 const { planTask } = require('./advisors/planner');
 const { critiquePlan } = require('./advisors/critic');
 const { resolvePriority } = require('./advisors/ceo');
@@ -470,13 +471,15 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
     routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
     routingLog.push('- Claude advisory only: claude_advisory_only');
 
-    const claudeContext = {
+    const claudeContext = packageClaudeContext({
       trigger: escalationDecision.trigger || 'repeated_deterministic_failure',
-      error: result.error || null,
-      classification: classification.classification,
-      failureCount: classification.count,
-      codexOutputs: result.output !== undefined ? [result.output] : [],
-      repoContext: {
+      failureContext: {
+        error: result.error || null,
+        classification: classification.classification,
+        failureCount: classification.count,
+        codexOutputs: result.output !== undefined ? [result.output] : [],
+      },
+      recentCommits: {
         lastSuccessfulCommit: state.lastSuccessfulCommit || null,
         currentCommit,
       },
@@ -484,7 +487,13 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
         allowedPaths: ['src/', 'docs/'],
         maxFiles: 2,
       },
-    };
+    });
+    if (claudeContext.constraints && claudeContext.constraints.scope) {
+      const scope = claudeContext.constraints.scope;
+      routingLog.push(`- Claude scope allowedFiles: ${scope.allowedFiles.map((entry) => entry.path).join(', ')}`);
+      routingLog.push(`- Claude scope maxFiles: ${scope.maxFiles}`);
+      routingLog.push(`- Claude scope forbiddenPatterns: ${scope.forbiddenPatterns.join(', ')}`);
+    }
 
     if (regressionInfo) {
       claudeContext.regression = regressionInfo;
@@ -625,13 +634,15 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
 
   routingLog.push(`- Escalation decision: Claude (${escalationReason})`);
   routingLog.push('- Claude advisory only: claude_advisory_only');
-  const claudeContext = {
+  const claudeContext = packageClaudeContext({
     trigger: escalationDecision.trigger || 'repeated_deterministic_failure',
-    error: lastFailure ? lastFailure.error : null,
-    classification: 'complex',
-    failureCount: state.failureCounts[task.id] || 0,
-    codexOutputs: lastFailure && lastFailure.output !== undefined ? [lastFailure.output] : [],
-    repoContext: {
+    failureContext: {
+      error: lastFailure ? lastFailure.error : null,
+      classification: 'complex',
+      failureCount: state.failureCounts[task.id] || 0,
+      codexOutputs: lastFailure && lastFailure.output !== undefined ? [lastFailure.output] : [],
+    },
+    recentCommits: {
       lastSuccessfulCommit: state.lastSuccessfulCommit || null,
       currentCommit,
     },
@@ -639,7 +650,13 @@ function runRoutingCycle(task, state, currentCommit, diffSummary, mode, maxAttem
       allowedPaths: ['src/', 'docs/'],
       maxFiles: 2,
     },
-  };
+  });
+  if (claudeContext.constraints && claudeContext.constraints.scope) {
+    const scope = claudeContext.constraints.scope;
+    routingLog.push(`- Claude scope allowedFiles: ${scope.allowedFiles.map((entry) => entry.path).join(', ')}`);
+    routingLog.push(`- Claude scope maxFiles: ${scope.maxFiles}`);
+    routingLog.push(`- Claude scope forbiddenPatterns: ${scope.forbiddenPatterns.join(', ')}`);
+  }
   recordUsage(state, {
     provider: 'claude',
     estimatedTokens: estimateTokens({ task, claudeContext }),

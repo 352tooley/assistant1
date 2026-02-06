@@ -159,7 +159,7 @@ function runClaude(task, context) {
         failureCount: ctx.failureCount,
         codexOutputs: ctx.codexOutputs,
       },
-      repoContext: ctx.repoContext || null,
+      repoContext: ctx.recentCommits || ctx.repoContext || null,
       constraints: ctx.constraints || null,
     };
 

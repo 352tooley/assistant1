@@ -33,6 +33,43 @@ function normalizeFixPacket(output, diagnosis, rootCause) {
   };
 }
 
+function matchesForbidden(pathValue, forbiddenPatterns) {
+  if (!pathValue) {
+    return false;
+  }
+  return forbiddenPatterns.some((pattern) => {
+    if (pattern.endsWith('/**')) {
+      const prefix = pattern.slice(0, -3);
+      return pathValue.startsWith(prefix);
+    }
+    return pathValue === pattern;
+  });
+}
+
+function validateScope(changes, scope) {
+  if (!scope || !Array.isArray(scope.allowedFiles)) {
+    return { ok: false, reason: 'Missing scope.' };
+  }
+  const allowed = new Set(scope.allowedFiles.map((entry) => entry.path));
+  const forbiddenPatterns = Array.isArray(scope.forbiddenPatterns) ? scope.forbiddenPatterns : [];
+  const uniqueFiles = Array.from(new Set(changes.map((change) => change.path)));
+
+  if (uniqueFiles.length > scope.maxFiles) {
+    return { ok: false, reason: 'Exceeded maxFiles in scope.' };
+  }
+
+  for (const pathValue of uniqueFiles) {
+    if (!allowed.has(pathValue)) {
+      return { ok: false, reason: `Out of scope: ${pathValue}` };
+    }
+    if (matchesForbidden(pathValue, forbiddenPatterns)) {
+      return { ok: false, reason: `Forbidden path: ${pathValue}` };
+    }
+  }
+
+  return { ok: true };
+}
+
 function validateSchema(output) {
   if (!output || typeof output !== 'object') {
     return 'Output is not an object.';
@@ -71,11 +108,19 @@ async function runClaudeAdapter({ trigger, failureContext, repoContext, constrai
   const maxTokens = anthropic.maxTokens || 800;
   const temperature = anthropic.temperature ?? 0.2;
 
+  const scope = constraints && constraints.scope ? constraints.scope : null;
+  const scopeLines = scope
+    ? scope.allowedFiles.map((entry) => `- ${entry.path}: ${entry.reason}`)
+    : ['- none'];
+
   const systemPrompt = [
     'You are diagnostic-only.',
     'You must output JSON only. No markdown.',
     'Follow the schema exactly.',
     'Do not include secrets or raw logs.',
+    'You may only propose fixes touching the files listed in scope.allowedFiles.',
+    'Any proposal outside this scope will be rejected automatically.',
+    `Scope allowed files:\n${scopeLines.join('\n')}`,
   ].join(' ');
 
   const payload = redactSecrets({
@@ -130,6 +175,13 @@ Context:\n${JSON.stringify(payload)}`;
   const schemaError = validateSchema(parsed);
   if (schemaError) {
     return { status: 'failure', diagnosis: 'Invalid Claude output.', proposedFixPacket: null };
+  }
+
+  if (parsed.proposedFix && parsed.proposedFix.kind === 'fixPacket') {
+    const scopeCheck = validateScope(parsed.proposedFix.packet.changes || [], scope);
+    if (!scopeCheck.ok) {
+      return { status: 'failure', diagnosis: 'Out-of-scope fix', proposedFixPacket: null, error: 'claude_fix_rejected_out_of_scope' };
+    }
   }
 
   const proposedFixPacket = normalizeFixPacket(parsed, parsed.diagnosis, parsed.rootCause);
