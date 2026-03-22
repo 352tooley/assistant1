@@ -453,6 +453,58 @@
       "dryRun": false,
       "providerSelected": "",
       "providerRole": ""
+    },
+    {
+      "runId": "run-1774163972921",
+      "timestamp": "2026-03-22T07:19:32.921Z",
+      "templateId": "web_build_basic",
+      "agentRole": "DevOps",
+      "mode": "standard",
+      "status": "success",
+      "phases": [
+        {
+          "phase": "Validating",
+          "message": "Validating approved task request.",
+          "at": "2026-03-22T07:19:32.921Z"
+        },
+        {
+          "phase": "Validating",
+          "message": "Template validated and inputs accepted.",
+          "at": "2026-03-22T07:19:32.922Z"
+        },
+        {
+          "phase": "Executing",
+          "message": "Executing template web_build_basic.",
+          "at": "2026-03-22T07:19:32.922Z"
+        },
+        {
+          "phase": "Completed",
+          "message": "Task completed.",
+          "at": "2026-03-22T07:19:32.928Z"
+        }
+      ],
+      "decisions": [
+        {
+          "type": "routing",
+          "reason": "agent_codex",
+          "policy": "routingPolicy"
+        }
+      ],
+      "limits": {
+        "maxCycles": 1,
+        "cyclesUsed": 1,
+        "allowsClaude": false
+      },
+      "compliance": {
+        "templateMatched": true,
+        "limitsEnforced": true,
+        "policyRespected": true
+      },
+      "advisorRequested": "auto",
+      "headlessIntent": false,
+      "dryRun": false,
+      "providerSelected": "",
+      "providerRole": ""
     }
   ]
 }
